@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result.confirmationSent) {
+      console.error("Waitlist entry was stored, but confirmation email was not sent.");
       return json(
         {
           ok: true,
@@ -88,9 +89,19 @@ export async function POST(request: NextRequest) {
     return json({ ok: true, message: "Registramos tu solicitud. Revisá tu correo." }, 201);
   } catch (error) {
     if (error instanceof WaitlistStorageError) {
-      console.error("Waitlist storage failed.");
+      console.error("Waitlist endpoint storage error", {
+        error,
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
     } else {
-      console.error("Waitlist endpoint failed.");
+      console.error("Waitlist endpoint failed", {
+        error,
+        message: error instanceof Error ? error.message : undefined,
+        name: error instanceof Error ? error.name : undefined,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
     return json({ ok: false, message: "No pudimos registrar tu solicitud. Intentá nuevamente más tarde." }, 500);
   }

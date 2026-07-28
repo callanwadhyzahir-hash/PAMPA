@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { logWaitlistConfirmationError } from "./send-waitlist-confirmation.ts";
+
 const WAITLIST_MIN_SUBMISSION_MS = 1_000;
 const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 
@@ -70,7 +72,13 @@ export async function registerWaitlist(
 
   try {
     outcome = await storage.create(entry);
-  } catch {
+  } catch (error) {
+    console.error("Waitlist storage failed with details", {
+      error,
+      message: error instanceof Error ? error.message : undefined,
+      name: error instanceof Error ? error.name : undefined,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw new WaitlistStorageError("Waitlist storage failed.");
   }
 
@@ -81,8 +89,8 @@ export async function registerWaitlist(
   try {
     await confirmationSender.send(entry);
     return { alreadyRegistered: false, confirmationSent: true };
-  } catch {
-    console.error("Waitlist confirmation email failed.");
+  } catch (error) {
+    logWaitlistConfirmationError(error);
     return { alreadyRegistered: false, confirmationSent: false };
   }
 }

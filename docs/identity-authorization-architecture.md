@@ -1,7 +1,7 @@
 # Arquitectura de identidad, autorización y aislamiento multiempresa
 
-**Estado:** Sprint 3 implementado y validado localmente  
-**Fecha:** 29 de julio de 2026  
+**Estado:** Sprint 3 implementado y validado localmente
+**Fecha:** 29 de julio de 2026
 **Alcance:** Autorización de Companies, catálogo RBAC, roles de sistema y bootstrap inicial de OWNER.
 
 > **Actualización del 29 de julio de 2026:** el Sprint 2 implementó

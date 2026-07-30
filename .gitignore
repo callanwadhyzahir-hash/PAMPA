@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!/.env.example
+!/pampa-api/.env.example
 
 # vercel
 .vercel
@@ -39,3 +41,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local AI/editor metadata
+/pampa-api/.agents/
+/pampa-api/.claude/
+/pampa-api/.windsurf/
+/pampa-api/skills-lock.json

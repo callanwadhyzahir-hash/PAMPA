@@ -186,8 +186,6 @@ export class SaleRepository {
         status: 'DRAFT',
         sale_item: {
           create: data.items.map((item) => ({
-            company_id: data.companyId,
-            product_id: item.productId,
             line_number: item.lineNumber,
             product_name: item.productName,
             product_code: item.productCode,
@@ -197,6 +195,14 @@ export class SaleRepository {
             discount_percent: item.discountPercent,
             subtotal: item.subtotal,
             total: item.total,
+            product: {
+              connect: {
+                id_company_id: {
+                  id: item.productId,
+                  company_id: data.companyId,
+                },
+              },
+            },
           })),
         },
       },

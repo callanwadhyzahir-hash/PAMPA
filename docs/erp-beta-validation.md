@@ -53,6 +53,8 @@ Las migraciones agregadas y aplicadas localmente son:
 - Lint, TypeScript y builds de backend/frontend aprobados.
 - Auditoría tenant sin relaciones cruzadas.
 - Dashboard y nueve conjuntos de reporte ejecutados contra PostgreSQL real.
+- Flujo PostgreSQL real validado: borrador, confirmación, total backend 217,80,
+  pago, reembolso, cancelación y stock repuesto de 8 a 10.
 - HTTP local verificado: frontend responde 200; rutas protegidas responden 401
   sin sesión.
 

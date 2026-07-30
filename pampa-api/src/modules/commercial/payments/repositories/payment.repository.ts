@@ -161,19 +161,19 @@ export class PaymentRepository {
       SET "current_balance" = (
         SELECT COALESCE(SUM(s."total"), 0)
         FROM "sale" s
-        WHERE s."company_id" = ${companyId}
-          AND s."client_id" = ${clientId}
+        WHERE s."company_id" = ${companyId}::uuid
+          AND s."client_id" = ${clientId}::uuid
           AND s."status" IN ('CONFIRMED', 'PARTIALLY_PAID', 'PAID')
       ) - (
         SELECT COALESCE(SUM(p."total"), 0)
         FROM "payment" p
         JOIN "sale" s ON s."id" = p."sale_id"
-        WHERE p."company_id" = ${companyId}
-          AND s."client_id" = ${clientId}
+        WHERE p."company_id" = ${companyId}::uuid
+          AND s."client_id" = ${clientId}::uuid
           AND p."status" = 'COMPLETED'
       )
-      WHERE c."id" = ${clientId}
-        AND c."company_id" = ${companyId}
+      WHERE c."id" = ${clientId}::uuid
+        AND c."company_id" = ${companyId}::uuid
     `;
   }
 }

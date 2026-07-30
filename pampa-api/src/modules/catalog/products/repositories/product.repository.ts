@@ -1,0 +1,248 @@
+import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+
+import { PrismaService } from '../../../../database/prisma.service';
+
+const productSelect = {
+  id: true,
+  category_id: true,
+  code: true,
+  barcode: true,
+  name: true,
+  description: true,
+  product_type: true,
+  unit: true,
+  cost: true,
+  sale_price: true,
+  tax_rate: true,
+  tracks_stock: true,
+  is_active: true,
+  created_at: true,
+  updated_at: true,
+  product_category: {
+    select: { id: true, name: true, is_active: true },
+  },
+  company: {
+    select: {
+      currency: { select: { id: true, code: true, name: true, symbol: true } },
+    },
+  },
+  stock: {
+    select: {
+      id: true,
+      warehouse_id: true,
+      quantity: true,
+      minimum_quantity: true,
+      maximum_quantity: true,
+      warehouse: {
+        select: { id: true, name: true, code: true, is_active: true },
+      },
+    },
+  },
+} satisfies Prisma.productSelect;
+
+interface ProductFilters {
+  search?: string;
+  categoryId?: string;
+  isActive?: boolean;
+  page: number;
+  limit: number;
+}
+
+@Injectable()
+export class ProductRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findAll(companyId: string, filters: ProductFilters) {
+    const where: Prisma.productWhereInput = {
+      company_id: companyId,
+      ...(filters.categoryId ? { category_id: filters.categoryId } : {}),
+      ...(filters.isActive === undefined
+        ? {}
+        : { is_active: filters.isActive }),
+      ...(filters.search
+        ? {
+            OR: [
+              { name: { contains: filters.search, mode: 'insensitive' } },
+              { code: { contains: filters.search, mode: 'insensitive' } },
+              { barcode: { contains: filters.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.product.findMany({
+        where,
+        select: productSelect,
+        orderBy: [{ is_active: 'desc' }, { name: 'asc' }],
+        skip: (filters.page - 1) * filters.limit,
+        take: filters.limit,
+      }),
+      this.prisma.product.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  findById(companyId: string, id: string) {
+    return this.prisma.product.findFirst({
+      where: { id, company_id: companyId },
+      select: productSelect,
+    });
+  }
+
+  findByBarcode(companyId: string, barcode: string) {
+    return this.prisma.product.findFirst({
+      where: { company_id: companyId, barcode },
+      select: productSelect,
+    });
+  }
+
+  findByCodeOrBarcode(
+    companyId: string,
+    code?: string,
+    barcode?: string,
+    excludeId?: string,
+  ) {
+    return this.prisma.product.findFirst({
+      where: {
+        company_id: companyId,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+        OR: [
+          ...(code
+            ? [{ code: { equals: code, mode: 'insensitive' as const } }]
+            : []),
+          ...(barcode ? [{ barcode }] : []),
+        ],
+      },
+      select: { id: true, code: true, barcode: true },
+    });
+  }
+
+  findActiveCategory(companyId: string, id: string) {
+    return this.prisma.product_category.findFirst({
+      where: { id, company_id: companyId, is_active: true },
+      select: { id: true },
+    });
+  }
+
+  create(
+    companyId: string,
+    data: {
+      categoryId?: string;
+      code: string;
+      barcode?: string;
+      name: string;
+      description?: string;
+      productType: string;
+      unit: string;
+      cost: Prisma.Decimal;
+      salePrice: Prisma.Decimal;
+      taxRate: Prisma.Decimal;
+      tracksStock: boolean;
+      isActive: boolean;
+    },
+  ) {
+    return this.prisma.product.create({
+      data: {
+        company_id: companyId,
+        category_id: data.categoryId,
+        code: data.code,
+        barcode: data.barcode,
+        name: data.name,
+        description: data.description,
+        product_type: data.productType,
+        unit: data.unit,
+        cost: data.cost,
+        sale_price: data.salePrice,
+        tax_rate: data.taxRate,
+        tracks_stock: data.tracksStock,
+        is_active: data.isActive,
+      },
+      select: productSelect,
+    });
+  }
+
+  async update(
+    companyId: string,
+    id: string,
+    data: {
+      categoryId?: string | null;
+      code?: string;
+      barcode?: string | null;
+      name?: string;
+      description?: string | null;
+      productType?: string;
+      unit?: string;
+      cost?: Prisma.Decimal;
+      salePrice?: Prisma.Decimal;
+      taxRate?: Prisma.Decimal;
+      tracksStock?: boolean;
+      isActive?: boolean;
+    },
+  ) {
+    const result = await this.prisma.product.updateMany({
+      where: { id, company_id: companyId },
+      data: {
+        category_id: data.categoryId,
+        code: data.code,
+        barcode: data.barcode,
+        name: data.name,
+        description: data.description,
+        product_type: data.productType,
+        unit: data.unit,
+        cost: data.cost,
+        sale_price: data.salePrice,
+        tax_rate: data.taxRate,
+        tracks_stock: data.tracksStock,
+        is_active: data.isActive,
+      },
+    });
+    return result.count === 1 ? this.findById(companyId, id) : null;
+  }
+
+  deactivate(companyId: string, id: string) {
+    return this.update(companyId, id, { isActive: false });
+  }
+
+  findStock(companyId: string, productId: string) {
+    return this.prisma.stock.findMany({
+      where: {
+        product_id: productId,
+        product: { company_id: companyId },
+        warehouse: { company_id: companyId },
+      },
+      select: {
+        id: true,
+        quantity: true,
+        minimum_quantity: true,
+        maximum_quantity: true,
+        warehouse: {
+          select: { id: true, name: true, code: true, is_active: true },
+        },
+      },
+      orderBy: { warehouse: { name: 'asc' } },
+    });
+  }
+
+  findMovements(companyId: string, productId: string) {
+    return this.prisma.stock_movement.findMany({
+      where: {
+        product_id: productId,
+        product: { company_id: companyId },
+        warehouse: { company_id: companyId },
+      },
+      select: {
+        id: true,
+        movement_type: true,
+        quantity: true,
+        reference_id: true,
+        observations: true,
+        created_at: true,
+        warehouse: { select: { id: true, name: true, code: true } },
+        user: { select: { id: true, first_name: true, last_name: true } },
+      },
+      orderBy: { created_at: 'desc' },
+      take: 100,
+    });
+  }
+}

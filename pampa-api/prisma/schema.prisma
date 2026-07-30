@@ -87,6 +87,7 @@ model client {
   sale            sale[]
 
   @@unique([company_id, code], map: "uq_client_company_code")
+  @@unique([id, company_id], map: "uq_client_id_company")
   @@index([business_name], map: "idx_client_business_name")
   @@index([company_id], map: "idx_client_company")
   @@index([tax_id], map: "idx_client_tax_id")
@@ -154,34 +155,50 @@ model currency {
 }
 
 model invoice {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sale_id        String    @unique @db.Uuid
-  invoice_number String?   @db.VarChar(50)
-  invoice_type   String?   @db.VarChar(10)
-  cae            String?   @db.VarChar(50)
-  cae_expiration DateTime? @db.Date
-  issued_at      DateTime? @db.Timestamptz(6)
-  status         String    @default("PENDING") @db.VarChar(20)
-  created_at     DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime  @default(now()) @db.Timestamptz(6)
-  sale           sale      @relation(fields: [sale_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_sale")
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id       String    @db.Uuid
+  sale_id          String    @unique @db.Uuid
+  internal_number  String    @unique @db.VarChar(50)
+  document_label   String    @default("COMPROBANTE INTERNO — NO FISCAL") @db.VarChar(100)
+  invoice_number   String?   @db.VarChar(50)
+  invoice_type     String?   @db.VarChar(10)
+  cae              String?   @db.VarChar(50)
+  cae_expiration   DateTime? @db.Date
+  issued_at        DateTime? @db.Timestamptz(6)
+  status           String    @default("ISSUED") @db.VarChar(20)
+  company_snapshot Json
+  client_snapshot  Json?
+  items_snapshot   Json
+  totals_snapshot  Json
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
+  sale             sale      @relation(fields: [sale_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_sale_company")
 
+  @@unique([sale_id, company_id], map: "uq_invoice_sale_company")
   @@index([invoice_number], map: "idx_invoice_number")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model payment {
-  id           String         @id(map: "pk_payment") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sale_id      String         @db.Uuid
-  payment_date DateTime       @default(now()) @db.Timestamptz(6)
-  total        Decimal        @db.Decimal(15, 2)
-  notes        String?
-  created_at   DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime       @default(now()) @db.Timestamptz(6)
-  sale         sale           @relation(fields: [sale_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_sale")
-  payment_item payment_item[]
+  id                  String         @id(map: "pk_payment") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id          String         @db.Uuid
+  sale_id             String         @db.Uuid
+  created_by          String         @db.Uuid
+  payment_date        DateTime       @default(now()) @db.Timestamptz(6)
+  total               Decimal        @db.Decimal(15, 2)
+  status              String         @default("COMPLETED") @db.VarChar(20)
+  reference           String?        @db.VarChar(255)
+  cancelled_at        DateTime?      @db.Timestamptz(6)
+  cancellation_reason String?
+  notes               String?
+  created_at          DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime       @default(now()) @db.Timestamptz(6)
+  sale                sale           @relation(fields: [sale_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_sale_company")
+  user                user           @relation(fields: [created_by, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_user_company")
+  payment_item        payment_item[]
 
   @@index([sale_id], map: "idx_payment_sale")
+  @@index([company_id, payment_date], map: "idx_payment_company_date")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -216,24 +233,27 @@ model product {
   company_id       String            @db.Uuid
   category_id      String?           @db.Uuid
   code             String            @db.VarChar(50)
-  barcode          String?           @unique(map: "uq_product_barcode") @db.VarChar(100)
+  barcode          String?           @db.VarChar(100)
   name             String            @db.VarChar(200)
   description      String?
   product_type     String            @db.VarChar(20)
   unit             String            @default("UNIT") @db.VarChar(20)
   cost             Decimal           @default(0) @db.Decimal(15, 2)
+  sale_price       Decimal           @default(0) @db.Decimal(15, 2)
   tax_rate         Decimal           @default(21) @db.Decimal(5, 2)
   tracks_stock     Boolean           @default(true)
   is_active        Boolean           @default(true)
   created_at       DateTime          @default(now()) @db.Timestamptz(6)
   updated_at       DateTime          @default(now()) @db.Timestamptz(6)
-  product_category product_category? @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_category")
+  product_category product_category? @relation(fields: [category_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_category_company")
   company          company           @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_company")
   sale_item        sale_item[]
   stock            stock[]
   stock_movement   stock_movement[]
 
   @@unique([company_id, code], map: "uq_product_company_code")
+  @@unique([company_id, barcode], map: "uq_product_company_barcode")
+  @@unique([id, company_id], map: "uq_product_id_company")
   @@index([category_id], map: "idx_product_category")
   @@index([company_id], map: "idx_product_company")
   @@index([name], map: "idx_product_name")
@@ -252,6 +272,7 @@ model product_category {
   company     company   @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_category_company")
 
   @@unique([company_id, name], map: "uq_product_category_company_name")
+  @@unique([id, company_id], map: "uq_product_category_id_company")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -289,49 +310,59 @@ model role_permission {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model sale {
-  id             String      @id(map: "pk_sale") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_id     String      @db.Uuid
-  branch_id      String      @db.Uuid
-  client_id      String?     @db.Uuid
-  user_id        String      @db.Uuid
-  sale_number    BigInt      @default(autoincrement())
-  sale_date      DateTime    @default(now()) @db.Timestamptz(6)
-  subtotal       Decimal     @default(0) @db.Decimal(15, 2)
-  tax_total      Decimal     @default(0) @db.Decimal(15, 2)
-  discount_total Decimal     @default(0) @db.Decimal(15, 2)
-  total          Decimal     @default(0) @db.Decimal(15, 2)
-  status         String      @default("COMPLETED") @db.VarChar(20)
-  notes          String?
-  created_at     DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime    @default(now()) @db.Timestamptz(6)
-  invoice        invoice?
-  payment        payment[]
-  branch         branch      @relation(fields: [branch_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_branch")
-  client         client?     @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_client")
-  company        company     @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_company")
-  user           user        @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_user")
-  sale_item      sale_item[]
+  id                  String      @id(map: "pk_sale") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id          String      @db.Uuid
+  branch_id           String      @db.Uuid
+  warehouse_id        String      @db.Uuid
+  client_id           String?     @db.Uuid
+  user_id             String      @db.Uuid
+  sale_number         BigInt      @default(autoincrement())
+  sale_date           DateTime    @default(now()) @db.Timestamptz(6)
+  subtotal            Decimal     @default(0) @db.Decimal(15, 2)
+  tax_total           Decimal     @default(0) @db.Decimal(15, 2)
+  discount_total      Decimal     @default(0) @db.Decimal(15, 2)
+  total               Decimal     @default(0) @db.Decimal(15, 2)
+  status              String      @default("DRAFT") @db.VarChar(20)
+  confirmed_at        DateTime?   @db.Timestamptz(6)
+  cancelled_at        DateTime?   @db.Timestamptz(6)
+  cancelled_by        String?     @db.Uuid
+  cancellation_reason String?
+  notes               String?
+  created_at          DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime    @default(now()) @db.Timestamptz(6)
+  invoice             invoice?
+  payment             payment[]
+  branch              branch      @relation(fields: [branch_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_branch_company")
+  warehouse           warehouse   @relation(fields: [warehouse_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_warehouse_company")
+  client              client?     @relation(fields: [client_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_client_company")
+  company             company     @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_company")
+  user                user        @relation(fields: [user_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_user_company")
+  sale_item           sale_item[]
 
+  @@unique([id, company_id], map: "uq_sale_id_company")
   @@index([client_id], map: "idx_sale_client")
   @@index([company_id], map: "idx_sale_company")
   @@index([sale_date], map: "idx_sale_date")
+  @@index([company_id, status, sale_date], map: "idx_sale_company_status_date")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model sale_item {
   id               String  @id(map: "pk_sale_item") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id       String  @db.Uuid
   sale_id          String  @db.Uuid
   product_id       String  @db.Uuid
   line_number      Int
   product_name     String  @db.VarChar(200)
+  product_code     String  @db.VarChar(50)
   quantity         Decimal @db.Decimal(15, 3)
   unit_price       Decimal @db.Decimal(15, 2)
   tax_rate         Decimal @db.Decimal(5, 2)
   discount_percent Decimal @default(0) @db.Decimal(5, 2)
   subtotal         Decimal @db.Decimal(15, 2)
   total            Decimal @db.Decimal(15, 2)
-  product          product @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_item_product")
-  sale             sale    @relation(fields: [sale_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sale_item_sale")
+  product          product @relation(fields: [product_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sale_item_product_company")
+  sale             sale    @relation(fields: [sale_id, company_id], references: [id, company_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sale_item_sale_company")
 
   @@unique([sale_id, line_number], map: "uq_sale_item_line")
   @@index([product_id], map: "idx_sale_item_product")
@@ -354,6 +385,7 @@ model state {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model stock {
   id               String    @id(map: "pk_stock") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id       String    @db.Uuid
   warehouse_id     String    @db.Uuid
   product_id       String    @db.Uuid
   quantity         Decimal   @default(0) @db.Decimal(15, 3)
@@ -361,32 +393,38 @@ model stock {
   maximum_quantity Decimal?  @db.Decimal(15, 3)
   created_at       DateTime  @default(now()) @db.Timestamptz(6)
   updated_at       DateTime  @default(now()) @db.Timestamptz(6)
-  product          product   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_product")
-  warehouse        warehouse @relation(fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_warehouse")
+  product          product   @relation(fields: [product_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_product_company")
+  warehouse        warehouse @relation(fields: [warehouse_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_warehouse_company")
 
   @@unique([warehouse_id, product_id], map: "uq_stock")
   @@index([product_id], map: "idx_stock_product")
   @@index([warehouse_id], map: "idx_stock_warehouse")
+  @@index([company_id], map: "idx_stock_company")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model stock_movement {
-  id            String    @id(map: "pk_stock_movement") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  warehouse_id  String    @db.Uuid
-  product_id    String    @db.Uuid
-  movement_type String    @db.VarChar(30)
-  quantity      Decimal   @db.Decimal(15, 3)
-  reference_id  String?   @db.Uuid
-  observations  String?
-  created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  created_by    String?   @db.Uuid
-  product       product   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_movement_product")
-  user          user?     @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_movement_user")
-  warehouse     warehouse @relation(fields: [warehouse_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_movement_warehouse")
+  id             String    @id(map: "pk_stock_movement") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id     String    @db.Uuid
+  warehouse_id   String    @db.Uuid
+  product_id     String    @db.Uuid
+  movement_type  String    @db.VarChar(30)
+  quantity       Decimal   @db.Decimal(15, 3)
+  reference_id   String?   @db.Uuid
+  reference_code String?   @db.VarChar(80)
+  origin         String    @db.VarChar(30)
+  observations   String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  created_by     String?   @db.Uuid
+  product        product   @relation(fields: [product_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_movement_product_company")
+  user           user?     @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_movement_user")
+  warehouse      warehouse @relation(fields: [warehouse_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_stock_movement_warehouse_company")
 
   @@index([created_at], map: "idx_stock_movement_date")
   @@index([product_id], map: "idx_stock_movement_product")
+  @@index([company_id, created_at], map: "idx_stock_movement_company_date")
+  @@index([reference_code], map: "idx_stock_movement_reference_code")
 }
 
 model tax_condition {
@@ -416,6 +454,7 @@ model user {
   created_at            DateTime               @default(now()) @db.Timestamptz(6)
   updated_at            DateTime               @default(now()) @db.Timestamptz(6)
   sale                  sale[]
+  payment               payment[]
   stock_movement        stock_movement[]
   branch                branch?                @relation(fields: [branch_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_branch_company")
   company               company                @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_company")
@@ -514,13 +553,16 @@ model warehouse {
   name           String           @db.VarChar(100)
   code           String           @db.VarChar(20)
   description    String?
+  is_main        Boolean          @default(false)
   is_active      Boolean          @default(true)
   created_at     DateTime         @default(now()) @db.Timestamptz(6)
   updated_at     DateTime         @default(now()) @db.Timestamptz(6)
   stock          stock[]
   stock_movement stock_movement[]
+  sale           sale[]
   branch         branch           @relation(fields: [branch_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_warehouse_branch_company")
   company        company          @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_warehouse_company")
 
   @@unique([company_id, code], map: "uq_warehouse_company_code")
+  @@unique([id, company_id], map: "uq_warehouse_id_company")
 }

@@ -23,9 +23,6 @@
     "rbac:assign-owner": "ts-node src/cli/rbac-assign-owner.ts",
     "integrity:audit": "ts-node src/cli/tenant-integrity-audit.ts"
   },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
   "overrides": {
     "js-yaml": "5.2.2"
   },

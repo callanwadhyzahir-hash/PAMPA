@@ -11,6 +11,14 @@ import { UsersModule } from './modules/administration/users/users.module';
 import { RolesModule } from './modules/administration/roles/roles.module';
 import { BranchesModule } from './modules/administration/branches/branches.module';
 import { CitiesModule } from './modules/core/cities/cities.module';
+import { ProductCategoriesModule } from './modules/catalog/product-categories/product-categories.module';
+import { ProductsModule } from './modules/catalog/products/products.module';
+import { WarehousesModule } from './modules/inventory/warehouses/warehouses.module';
+import { StockModule } from './modules/inventory/stock/stock.module';
+import { ClientsModule } from './modules/commercial/clients/clients.module';
+import { SalesModule } from './modules/commercial/sales/sales.module';
+import { PaymentsModule } from './modules/commercial/payments/payments.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -28,6 +36,14 @@ import { CitiesModule } from './modules/core/cities/cities.module';
     RolesModule,
     BranchesModule,
     CitiesModule,
+    ProductCategoriesModule,
+    ProductsModule,
+    WarehousesModule,
+    StockModule,
+    ClientsModule,
+    SalesModule,
+    PaymentsModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

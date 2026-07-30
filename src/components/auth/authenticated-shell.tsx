@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { LoaderCircle, LogOut } from "lucide-react";
+import Link from "next/link";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -52,7 +53,7 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar items={allowedNavigation} />
+      <Sidebar items={allowedNavigation} className="hidden lg:flex" />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar title={user.company.name}>
           <div className="flex items-center gap-3">
@@ -65,6 +66,21 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
             </Button>
           </div>
         </Topbar>
+        <nav
+          className="flex gap-1 overflow-x-auto border-b bg-background p-2 lg:hidden"
+          aria-label="Navegación móvil"
+        >
+          {allowedNavigation.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Icon className="size-4" aria-hidden />
+              {label}
+            </Link>
+          ))}
+        </nav>
         <div className="flex-1">{children}</div>
       </div>
     </div>

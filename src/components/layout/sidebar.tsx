@@ -2,6 +2,8 @@
 
 import type { ComponentType } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
@@ -9,7 +11,7 @@ type NavigationItem = {
   label: string;
   href: string;
   icon: ComponentType<{ className?: string }>;
-  active?: boolean;
+  permission?: string;
 };
 
 type SidebarProps = {
@@ -18,6 +20,8 @@ type SidebarProps = {
 };
 
 function Sidebar({ items, className }: SidebarProps) {
+  const pathname = usePathname();
+
   return (
     <aside
       className={cn(
@@ -33,8 +37,12 @@ function Sidebar({ items, className }: SidebarProps) {
         className="mt-8 space-y-1"
         aria-label="Navegación principal"
       >
-        {items.map(({ label, href, icon: Icon, active }) => (
-          <a
+        {items.map(({ label, href, icon: Icon }) => {
+          const active =
+            pathname === href ||
+            (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+          return (
+          <Link
             key={href}
             href={href}
             className={cn(
@@ -57,8 +65,9 @@ function Sidebar({ items, className }: SidebarProps) {
             <span className="relative">
               {label}
             </span>
-          </a>
-        ))}
+          </Link>
+          );
+        })}
       </nav>
     </aside>
   );

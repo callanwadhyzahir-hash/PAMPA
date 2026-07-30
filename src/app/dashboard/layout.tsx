@@ -2,41 +2,24 @@
 
 import type { ReactNode } from "react";
 import {
-  BarChart3,
-  Boxes,
   Building2,
-  ClipboardList,
+  GitBranch,
   LayoutDashboard,
-  Package,
-  Settings,
-  ShoppingCart,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 
 import type { NavigationItem } from "@/components/layout/sidebar";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
+import { AuthenticatedShell } from "@/components/auth/authenticated-shell";
 
 const navigation: NavigationItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, active: true },
-  { label: "Empresas", href: "/dashboard/companies", icon: Building2 },
-  { label: "Productos", href: "/dashboard/productos", icon: Package },
-  { label: "Clientes", href: "/dashboard/clientes", icon: Users },
-  { label: "Inventario", href: "/dashboard/inventario", icon: Boxes },
-  { label: "Ventas", href: "/dashboard/ventas", icon: ShoppingCart },
-  { label: "Compras", href: "/dashboard/compras", icon: ClipboardList },
-  { label: "Reportes", href: "/dashboard/reportes", icon: BarChart3 },
-  { label: "Configuracion", href: "/dashboard/configuracion", icon: Settings },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Mi empresa", href: "/dashboard/companies", icon: Building2, permission: "companies.read" },
+  { label: "Usuarios", href: "/dashboard/users", icon: Users, permission: "users.read" },
+  { label: "Roles", href: "/dashboard/roles", icon: ShieldCheck, permission: "roles.read" },
+  { label: "Sucursales", href: "/dashboard/branches", icon: GitBranch, permission: "branches.read" },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar items={navigation} />
-      <div className="flex flex-1 flex-col">
-        <Topbar title="Dashboard" />
-        <div className="flex-1">{children}</div>
-      </div>
-    </div>
-  );
+  return <AuthenticatedShell navigation={navigation}>{children}</AuthenticatedShell>;
 }

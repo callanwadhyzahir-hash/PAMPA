@@ -1,96 +1,142 @@
-"use client";
+'use client';
 
-import {
-  AlertTriangle,
-  BarChart3,
-  Boxes,
-  CircleDollarSign,
-  Globe2,
-  Package,
-  Users,
-} from "lucide-react";
+import { useEffect, useState } from 'react';
+import { Building2, GitBranch, ShieldCheck, Users } from 'lucide-react';
 
-import { SectionTitle } from "@/components/dashboard/section-title";
-import { StatCard } from "@/components/dashboard/stat-card";
-import { PageContainer } from "@/components/layout/page-container";
-import { Badge } from "@/components/ui/badge";
-import { useCountries } from "@/hooks/use-countries";
+import { SectionTitle } from '@/components/dashboard/section-title';
+import { StatCard } from '@/components/dashboard/stat-card';
+import { PageContainer } from '@/components/layout/page-container';
+import { ErrorState, LoadingState } from '@/components/pampa-ui';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from '@/components/ui/card';
+import { branchesService } from '@/services/administration/branches.service';
+import { rolesService } from '@/services/administration/roles.service';
+import { usersService } from '@/services/administration/users.service';
+import { companiesService } from '@/services/company/companies.service';
 
-const activity = [
-  { title: "Venta registrada", description: "Factura A-0001-00001248", time: "Hace 12 min", variant: "success" as const },
-  { title: "Stock actualizado", description: "Ajuste en Deposito central", time: "Hace 38 min", variant: "info" as const },
-  { title: "Nuevo cliente", description: "Comercial del Sur S.R.L.", time: "Hace 2 h", variant: "default" as const },
-  { title: "Pago recibido", description: "Transferencia acreditada", time: "Hace 4 h", variant: "success" as const },
-];
+interface Summary {
+  companyName: string;
+  users: number;
+  activeUsers: number;
+  roles: number;
+  branches: number;
+  activeBranches: number;
+}
 
 export default function DashboardPage() {
-  const { countries, error, loading } = useCountries();
-  const countryCount = loading ? "..." : error ? "--" : countries.length.toString();
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      companiesService.getCurrent(),
+      usersService.list(),
+      rolesService.list(),
+      branchesService.list(),
+    ])
+      .then(([company, users, roles, branches]) => {
+        if (!active) return;
+        setSummary({
+          companyName: company.name,
+          users: users.length,
+          activeUsers: users.filter((user) => user.is_active).length,
+          roles: roles.length,
+          branches: branches.length,
+          activeBranches: branches.filter((branch) => branch.is_active).length,
+        });
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : 'No se pudo cargar el resumen.',
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!summary && !error) {
+    return <LoadingState label="Preparando el dashboard" />;
+  }
 
   return (
     <PageContainer className="space-y-8">
-   <SectionTitle
-  title="Dashboard"
-  description="Resumen general del estado de la empresa."
-/>
+      <SectionTitle
+        title="Dashboard"
+        description="Estado actual de identidad y administración de tu empresa."
+      />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Indicadores principales">
-        <StatCard label="Ventas del mes" value="$ 2.480.000" detail="12,4% vs. mes anterior" icon={<CircleDollarSign className="size-5" />} />
-        <StatCard label="Clientes" value="248" detail="18 nuevos este mes" icon={<Users className="size-5" />} />
-        <StatCard label="Productos" value="1.284" detail="86 con movimiento reciente" icon={<Package className="size-5" />} />
-        <StatCard label="Stock critico" value="12" detail="Requiere reposicion" icon={<AlertTriangle className="size-5" />} />
-        <StatCard
-          label="Paises"
-          value={countryCount}
-          detail={error ? "No se pudieron cargar los paises" : "Catalogo disponible"}
-          icon={<Globe2 className="size-5" />}
-        />
-      </section>
+      {error ? (
+        <ErrorState title="No se pudo cargar el resumen" description={error} />
+      ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="min-h-[360px] border py-0 shadow-none">
-          <CardHeader className="border-b py-5">
-            <CardTitle>Ventas mensuales</CardTitle>
-            <CardDescription>Visualizacion disponible proximamente.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex min-h-[278px] items-center justify-center p-6">
-            <div className="flex w-full max-w-md flex-col items-center rounded-lg border border-dashed bg-muted/40 px-6 py-10 text-center">
-              <BarChart3 className="size-8 text-muted-foreground" />
-              <p className="mt-4 font-medium">Grafico de ventas</p>
-              <p className="mt-1 text-sm text-muted-foreground">Este espacio mostrara la evolucion de las ventas.</p>
-            </div>
-          </CardContent>
-        </Card>
+      {summary ? (
+        <>
+          <section
+            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            aria-label="Indicadores de administración"
+          >
+            <StatCard
+              label="Empresa"
+              value={summary.companyName}
+              detail="Tenant autenticado"
+              icon={<Building2 className="size-5" />}
+            />
+            <StatCard
+              label="Usuarios activos"
+              value={summary.activeUsers.toString()}
+              detail={`${summary.users} registrados`}
+              icon={<Users className="size-5" />}
+            />
+            <StatCard
+              label="Roles"
+              value={summary.roles.toString()}
+              detail="Sistema y personalizados"
+              icon={<ShieldCheck className="size-5" />}
+            />
+            <StatCard
+              label="Sucursales activas"
+              value={summary.activeBranches.toString()}
+              detail={`${summary.branches} registradas`}
+              icon={<GitBranch className="size-5" />}
+            />
+          </section>
 
-        <Card className="border py-0 shadow-none">
-          <CardHeader className="border-b py-5">
-            <CardTitle>Actividad reciente</CardTitle>
-            <CardDescription>Ultimos movimientos de la empresa.</CardDescription>
-          </CardHeader>
-          <CardContent className="divide-y px-5">
-            {activity.map((item) => (
-              <div key={item.title} className="flex items-start gap-3 py-4">
-                <div className="mt-1 rounded-md bg-muted p-2 text-muted-foreground">
-                  <Boxes className="size-4" />
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle>Administración habilitada</CardTitle>
+              <CardDescription>
+                PAMPA ya opera con datos reales de la empresa autenticada.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ['Mi empresa', 'Identidad fiscal y contacto'],
+                ['Usuarios', 'Accesos y estado de cuentas'],
+                ['Roles', 'Permisos y protección OWNER'],
+                ['Sucursales', 'Ubicaciones y principal activa'],
+              ].map(([title, description]) => (
+                <div key={title} className="rounded-xl border p-4">
+                  <p className="font-medium">{title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {description}
+                  </p>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{item.title}</p>
-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">{item.description}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.time}</p>
-                </div>
-                <Badge variant={item.variant}>Nuevo</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </section>
+              ))}
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
     </PageContainer>
   );
 }

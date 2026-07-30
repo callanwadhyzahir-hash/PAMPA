@@ -43,12 +43,17 @@ async function getErrorResponse(response: Response): Promise<ApiErrorResponse | 
   }
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+  allowRefresh = true,
+): Promise<T> {
   let response: Response;
 
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
+      credentials: "include",
       headers: {
         Accept: "application/json",
         ...init?.headers,
@@ -59,6 +64,22 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      allowRefresh &&
+      !path.startsWith("/auth/")
+    ) {
+      try {
+        await apiFetch<void>(
+          "/auth/refresh",
+          { method: "POST" },
+          false,
+        );
+        return apiFetch<T>(path, init, false);
+      } catch {
+        // Preserve the original endpoint response below.
+      }
+    }
     const errorResponse = await getErrorResponse(response);
     throw new ApiError(
       getErrorMessage(errorResponse),
@@ -66,6 +87,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       errorResponse,
       errorResponse?.details,
     );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;

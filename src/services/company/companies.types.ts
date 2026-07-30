@@ -1,5 +1,3 @@
-import type { CrudService } from '@/components/pampa-ui';
-
 type Company = {
   id: string;
   company_type_id: string;
@@ -33,8 +31,6 @@ type CompanyCreateInput = {
 
 type CompanyUpdateInput = Partial<CompanyCreateInput>;
 
-type CompaniesService = CrudService<Company, CompanyCreateInput, CompanyUpdateInput>;
-
 type ApiResponse<T> = {
   success: boolean;
   message: string;
@@ -44,7 +40,6 @@ type ApiResponse<T> = {
 
 export type {
   ApiResponse,
-  CompaniesService,
   Company,
   CompanyCreateInput,
   CompanyUpdateInput,

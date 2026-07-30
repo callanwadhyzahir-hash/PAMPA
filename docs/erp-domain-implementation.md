@@ -1,7 +1,7 @@
 # PAMPA ERP — Auditoría e implementación del dominio interno
 
-**Fecha:** 30 de julio de 2026  
-**Estado:** auditoría inicial completada; implementación por fases en curso.  
+**Fecha:** 30 de julio de 2026
+**Estado:** auditoría inicial completada; implementación por fases en curso.
 **Alcance:** beta local sin APIs externas, sin facturación fiscal ARCA y sin rediseño visual premium.
 
 ## 1. Evidencia auditada
@@ -205,4 +205,3 @@ No se modifica ninguna migración aplicada. Cada SQL se revisa antes de aplicar 
 10. Caja sólo si los módulos anteriores quedan verdes y el modelo puede agregarse sin comprometerlos.
 
 Un módulo no habilita el siguiente hasta que backend, frontend, permisos, aislamiento tenant, tests y validación local de su flujo crítico estén verdes.
-

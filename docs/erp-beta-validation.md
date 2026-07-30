@@ -1,6 +1,6 @@
 # PAMPA ERP - cierre de beta interna
 
-**Fecha:** 30 de julio de 2026  
+**Fecha:** 30 de julio de 2026
 **Alcance:** operación local sin APIs externas ni comprobantes fiscales ARCA.
 
 Este documento actualiza el estado inicial registrado en

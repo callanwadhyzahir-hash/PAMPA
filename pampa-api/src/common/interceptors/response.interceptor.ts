@@ -16,8 +16,26 @@ export class ResponseInterceptor implements NestInterceptor {
         success: true,
         message: 'Success',
         timestamp: new Date().toISOString(),
-        data,
+        data: serializeBigInts(data),
       })),
     );
   }
+}
+
+function serializeBigInts(value: unknown): unknown {
+  if (typeof value === 'bigint') return value.toString();
+  if (Array.isArray(value)) return value.map(serializeBigInts);
+  if (
+    value &&
+    typeof value === 'object' &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        serializeBigInts(nestedValue),
+      ]),
+    );
+  }
+  return value;
 }

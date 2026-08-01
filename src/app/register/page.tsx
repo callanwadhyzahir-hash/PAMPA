@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 
 import { AuthShowcase } from "@/components/auth/auth-showcase";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authService } from "@/services/auth.service";
 
@@ -57,7 +57,7 @@ export default function RegisterPage() {
             </div>
             <label className="flex items-start gap-2 text-xs leading-5 text-muted-foreground"><input type="checkbox" className="mt-1 size-4" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Acepto los términos y la <Link className="text-primary hover:underline" href="/privacidad">política de privacidad</Link>.</span></label>
             {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
-            <Button type="submit" className="h-11 w-full" size="lg" disabled={submitting}>{submitting && <LoaderCircle className="size-4 animate-spin" />}{submitting ? "Creando tu espacio" : "Crear cuenta"}</Button>
+            <button type="submit" className={buttonVariants({ size: "lg", className: "h-11 w-full" })} disabled={submitting}>{submitting && <LoaderCircle className="size-4 animate-spin" />}{submitting ? "Creando tu espacio" : "Crear cuenta"}</button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">¿Ya tenés cuenta? <Link className="font-medium text-foreground hover:underline" href="/login">Iniciar sesión</Link></p>
         </div>

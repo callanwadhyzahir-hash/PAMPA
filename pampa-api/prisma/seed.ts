@@ -64,6 +64,16 @@ const argentinaStates = [
     name: 'Mendoza',
     cities: [{ name: 'Mendoza', postalCode: 'M5500' }],
   },
+  {
+    code: 'K',
+    name: 'Catamarca',
+    cities: [
+      {
+        name: 'San Fernando del Valle de Catamarca',
+        postalCode: 'K4700',
+      },
+    ],
+  },
 ] as const;
 
 type SeedResult = {

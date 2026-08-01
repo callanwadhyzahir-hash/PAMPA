@@ -130,7 +130,10 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-8 border-t pt-6 text-center text-xs leading-5 text-[#6b7280]">
-            ¿Necesitás acceso? Contactá al administrador de tu empresa.
+            ¿No tenés cuenta?{" "}
+            <Link href="/register" className="font-medium text-[#2563eb] hover:underline">
+              Crear cuenta
+            </Link>
           </p>
         </div>
       </section>

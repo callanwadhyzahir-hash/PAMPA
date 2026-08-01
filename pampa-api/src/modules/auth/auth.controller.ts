@@ -41,6 +41,8 @@ import {
 import { PasswordRecoveryService } from './password/password-recovery.service';
 import { RateLimitService } from './rate-limit/rate-limit.service';
 import { SecurityAuditService } from './audit/security-audit.service';
+import { RegisterDto } from './dto/register.dto';
+import { RegistrationService } from './registration/registration.service';
 
 const ACCESS_COOKIE = 'pampa_access';
 const REFRESH_COOKIE = 'pampa_refresh';
@@ -65,7 +67,29 @@ export class AuthController {
     private readonly passwords: PasswordRecoveryService,
     private readonly rateLimit: RateLimitService,
     private readonly audit: SecurityAuditService,
+    private readonly registration: RegistrationService,
   ) {}
+
+  @Post('register')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Crear una empresa y su usuario propietario' })
+  async register(@Body() dto: RegisterDto, @Ip() ip: string) {
+    await this.rateLimit.consume({
+      action: 'register',
+      key: `${ip}:${dto.email}`,
+      limit: 3,
+      windowMs: 60 * 60 * 1000,
+    });
+    const result = await this.registration.register(dto);
+    await this.audit.record({
+      companyId: result.companyId,
+      actorUserId: result.userId,
+      eventType: 'TENANT_REGISTERED',
+      result: 'SUCCESS',
+    });
+    return { created: true };
+  }
 
   @Post('login')
   @Public()

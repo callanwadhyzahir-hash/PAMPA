@@ -6,7 +6,23 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface RegisterAccount {
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  taxId: string;
+  email: string;
+  password: string;
+}
+
 export const authService = {
+  async register(account: RegisterAccount) {
+    await apiFetch<ApiEnvelope<{ created: boolean }>>("/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(account),
+    });
+  },
   async login(credentials: LoginCredentials) {
     const response = await apiFetch<ApiEnvelope<AuthUser>>("/auth/login", {
       method: "POST",

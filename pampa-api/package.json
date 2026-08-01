@@ -11,7 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
@@ -19,6 +19,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed": "ts-node prisma/seed.ts",
+    "seed:demo": "ts-node prisma/seed-demo.ts",
     "rbac:bootstrap": "ts-node src/cli/rbac-bootstrap.ts",
     "rbac:assign-owner": "ts-node src/cli/rbac-assign-owner.ts",
     "integrity:audit": "ts-node src/cli/tenant-integrity-audit.ts"

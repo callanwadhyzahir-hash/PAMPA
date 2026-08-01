@@ -20,6 +20,7 @@ import { SessionContextService } from '../src/modules/auth/sessions/session-cont
 import { PasswordRecoveryService } from '../src/modules/auth/password/password-recovery.service';
 import { RateLimitService } from '../src/modules/auth/rate-limit/rate-limit.service';
 import { SecurityAuditService } from '../src/modules/auth/audit/security-audit.service';
+import { RegistrationService } from '../src/modules/auth/registration/registration.service';
 import { CompaniesController } from '../src/modules/core/companies/companies.controller';
 import { CompaniesService } from '../src/modules/core/companies/companies.service';
 
@@ -145,6 +146,7 @@ describe('OWNER authentication and authorization (e2e)', () => {
           },
         },
         { provide: SecurityAuditService, useValue: { record: jest.fn() } },
+        { provide: RegistrationService, useValue: { register: jest.fn() } },
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: PermissionGuard },
       ],

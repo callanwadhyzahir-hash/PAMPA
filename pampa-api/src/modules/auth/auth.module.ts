@@ -18,6 +18,8 @@ import { RateLimitService } from './rate-limit/rate-limit.service';
 import { PasswordRecoveryRepository } from './password/password-recovery.repository';
 import { PasswordRecoveryService } from './password/password-recovery.service';
 import { PasswordNotifierService } from './password/password-notifier.service';
+import { RegistrationRepository } from './registration/registration.repository';
+import { RegistrationService } from './registration/registration.service';
 
 @Module({
   imports: [
@@ -63,6 +65,8 @@ import { PasswordNotifierService } from './password/password-notifier.service';
     PasswordRecoveryRepository,
     PasswordRecoveryService,
     PasswordNotifierService,
+    RegistrationRepository,
+    RegistrationService,
   ],
   controllers: [AuthController],
 })

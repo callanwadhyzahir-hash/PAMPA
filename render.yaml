@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: pampa-api
+    runtime: node
+    plan: free
+    rootDir: pampa-api
+    buildCommand: npm ci && npx prisma generate && npm run build && npx prisma migrate deploy
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: ENABLE_SWAGGER
+        value: "false"

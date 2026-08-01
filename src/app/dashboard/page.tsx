@@ -8,6 +8,8 @@ import {
   CircleDollarSign,
   ShoppingCart,
   Users,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
 
 import { SectionTitle } from "@/components/dashboard/section-title";
@@ -16,6 +18,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { ErrorState, LoadingState } from "@/components/pampa-ui";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -114,6 +117,22 @@ export default function DashboardPage() {
 
       {metrics && !loading ? (
         <>
+          <section className="overflow-hidden rounded-2xl border bg-[#111827] text-white">
+            <div className="grid gap-6 p-6 sm:p-8 xl:grid-cols-[1fr_auto] xl:items-center">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/15 px-3 py-1 text-xs font-medium text-blue-200"><Sparkles className="size-3.5" /> Centro de comando</span>
+                <h2 className="mt-4 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">¿Qué querés hacer hoy?</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Empezá por una tarea frecuente. Los indicadores de abajo se actualizan con cada operación confirmada.</p>
+              </div>
+              <Button render={<Link href="/dashboard/sales/new" />} size="lg" className="bg-blue-500 hover:bg-blue-600">Registrar venta <ArrowRight className="size-4" /></Button>
+            </div>
+            <div className="grid border-t border-white/10 sm:grid-cols-3">
+              <QuickAction href="/dashboard/products" title="Crear producto" detail="Precio, costo y stock" />
+              <QuickAction href="/dashboard/clients" title="Agregar cliente" detail="Datos y cuenta corriente" />
+              <QuickAction href="/dashboard/stock" title="Revisar inventario" detail={`${metrics.lowStock} alertas activas`} />
+            </div>
+          </section>
+
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Ventas de hoy"
@@ -251,6 +270,10 @@ export default function DashboardPage() {
       ) : null}
     </PageContainer>
   );
+}
+
+function QuickAction({ href, title, detail }: { href: string; title: string; detail: string }) {
+  return <Link href={href} className="flex items-center justify-between border-white/10 px-6 py-4 hover:bg-white/5 sm:border-r last:border-r-0"><span><span className="block text-sm font-medium">{title}</span><span className="mt-1 block text-xs text-slate-400">{detail}</span></span><ArrowRight className="size-4 text-slate-400" /></Link>;
 }
 
 function currency(value: string) {

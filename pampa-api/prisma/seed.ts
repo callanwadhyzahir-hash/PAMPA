@@ -27,6 +27,45 @@ const currencies = [
   { code: 'BRL', name: 'Real Brasileño', symbol: 'R$' },
 ] as const;
 
+const argentinaStates = [
+  {
+    code: 'C',
+    name: 'Ciudad Autónoma de Buenos Aires',
+    cities: [{ name: 'Ciudad Autónoma de Buenos Aires', postalCode: 'C1000' }],
+  },
+  {
+    code: 'B',
+    name: 'Buenos Aires',
+    cities: [
+      { name: 'La Plata', postalCode: 'B1900' },
+      { name: 'Mar del Plata', postalCode: 'B7600' },
+      { name: 'Bahía Blanca', postalCode: 'B8000' },
+    ],
+  },
+  {
+    code: 'X',
+    name: 'Córdoba',
+    cities: [
+      { name: 'Córdoba', postalCode: 'X5000' },
+      { name: 'Río Cuarto', postalCode: 'X5800' },
+      { name: 'Villa María', postalCode: 'X5900' },
+    ],
+  },
+  {
+    code: 'S',
+    name: 'Santa Fe',
+    cities: [
+      { name: 'Rosario', postalCode: 'S2000' },
+      { name: 'Santa Fe', postalCode: 'S3000' },
+    ],
+  },
+  {
+    code: 'M',
+    name: 'Mendoza',
+    cities: [{ name: 'Mendoza', postalCode: 'M5500' }],
+  },
+] as const;
+
 type SeedResult = {
   created: number;
   existing: number;
@@ -71,9 +110,66 @@ async function main() {
   const created = companyTypesResult.created + taxConditionsResult.created + currenciesResult.created;
   const existing = companyTypesResult.existing + taxConditionsResult.existing + currenciesResult.existing;
 
+  const argentina = await prisma.country.upsert({
+    where: { iso_code: 'AR' },
+    create: {
+      iso_code: 'AR',
+      name: 'Argentina',
+      phone_code: '+54',
+      is_active: true,
+    },
+    update: { is_active: true },
+  });
+
+  let statesCreated = 0;
+  let citiesCreated = 0;
+  for (const stateData of argentinaStates) {
+    const existingState = await prisma.state.findFirst({
+      where: { country_id: argentina.id, name: stateData.name },
+    });
+    const state = existingState
+      ? await prisma.state.update({
+          where: { id: existingState.id },
+          data: { code: stateData.code, is_active: true },
+        })
+      : await prisma.state.create({
+          data: {
+            country_id: argentina.id,
+            code: stateData.code,
+            name: stateData.name,
+            is_active: true,
+          },
+        });
+    if (!existingState) statesCreated += 1;
+
+    for (const cityData of stateData.cities) {
+      const existingCity = await prisma.city.findFirst({
+        where: { state_id: state.id, name: cityData.name },
+      });
+      if (existingCity) {
+        await prisma.city.update({
+          where: { id: existingCity.id },
+          data: { postal_code: cityData.postalCode, is_active: true },
+        });
+      } else {
+        await prisma.city.create({
+          data: {
+            state_id: state.id,
+            name: cityData.name,
+            postal_code: cityData.postalCode,
+            is_active: true,
+          },
+        });
+        citiesCreated += 1;
+      }
+    }
+  }
+
   console.info(`Company Types: ${companyTypesResult.created} creados, ${companyTypesResult.existing} existentes.`);
   console.info(`Tax Conditions: ${taxConditionsResult.created} creados, ${taxConditionsResult.existing} existentes.`);
   console.info(`Currencies: ${currenciesResult.created} creados, ${currenciesResult.existing} existentes.`);
+  console.info(`Provincias argentinas: ${statesCreated} creadas.`);
+  console.info(`Ciudades argentinas: ${citiesCreated} creadas.`);
   console.info(`Total: ${created} creados, ${existing} existentes.`);
 }
 

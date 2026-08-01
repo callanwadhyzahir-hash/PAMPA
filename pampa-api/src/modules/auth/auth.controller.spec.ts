@@ -6,6 +6,7 @@ import { SessionService } from './sessions/session.service';
 import { PasswordRecoveryService } from './password/password-recovery.service';
 import { RateLimitService } from './rate-limit/rate-limit.service';
 import { SecurityAuditService } from './audit/security-audit.service';
+import { RegistrationService } from './registration/registration.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -20,6 +21,7 @@ describe('AuthController', () => {
         { provide: PasswordRecoveryService, useValue: {} },
         { provide: RateLimitService, useValue: {} },
         { provide: SecurityAuditService, useValue: {} },
+        { provide: RegistrationService, useValue: {} },
       ],
     }).compile();
 

@@ -19,6 +19,7 @@ import { ClientsModule } from './modules/commercial/clients/clients.module';
 import { SalesModule } from './modules/commercial/sales/sales.module';
 import { PaymentsModule } from './modules/commercial/payments/payments.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -45,5 +46,6 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     PaymentsModule,
     AnalyticsModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

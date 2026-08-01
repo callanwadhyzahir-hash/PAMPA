@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { LoaderCircle, LogOut } from "lucide-react";
+import { CircleHelp, LoaderCircle, LogOut } from "lucide-react";
 import Link from "next/link";
 
 import { Sidebar } from "@/components/layout/sidebar";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { authService } from "@/services/auth.service";
 import type { NavigationItem } from "@/components/layout/sidebar";
+import { ProductTour } from "@/components/onboarding/product-tour";
 
 interface AuthenticatedShellProps {
   children: ReactNode;
@@ -61,6 +62,9 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
               <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
               <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
+            <Button variant="ghost" size="icon" onClick={() => window.dispatchEvent(new Event("pampa:restart-tour"))} aria-label="Ver tutorial">
+              <CircleHelp className="size-4" aria-hidden />
+            </Button>
             <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Cerrar sesión">
               <LogOut className="size-4" aria-hidden />
             </Button>
@@ -83,6 +87,7 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
         </nav>
         <div className="flex-1">{children}</div>
       </div>
+      <ProductTour userId={user.id} />
     </div>
   );
 }

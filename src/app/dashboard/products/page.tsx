@@ -547,11 +547,14 @@ function ProductDialog({
               <Input
                 required
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
                 value={form.salePrice}
                 onChange={(event) => field('salePrice', event.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                Debe ser mayor que cero para evitar ventas sin importe.
+              </p>
             </Field>
             <Field label="Impuesto %">
               <Input

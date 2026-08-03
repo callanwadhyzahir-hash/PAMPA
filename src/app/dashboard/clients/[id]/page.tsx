@@ -22,6 +22,7 @@ import {
   type ClientAccount,
   type ClientSale,
 } from '@/services/commercial/clients.service';
+import { saleStatusLabel } from '@/lib/sales-presentation';
 
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>();
@@ -144,7 +145,9 @@ export default function ClientDetailPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="info">{sale.status}</Badge>
+                      <Badge variant="info">
+                        {saleStatusLabel(sale.status)}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}

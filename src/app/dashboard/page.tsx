@@ -33,6 +33,7 @@ import {
 } from "@/services/analytics.service";
 import { branchesService } from "@/services/administration/branches.service";
 import type { BranchDetail } from "@/services/administration/types";
+import { saleStatusLabel } from "@/lib/sales-presentation";
 
 export default function DashboardPage() {
   const [range, setRange] = useState("month");
@@ -203,7 +204,9 @@ export default function DashboardPage() {
                         </TableCell>
                         <TableCell>{clientName(sale.client)}</TableCell>
                         <TableCell>
-                          <Badge variant="info">{sale.status}</Badge>
+                          <Badge variant="info">
+                            {saleStatusLabel(sale.status)}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           {currency(sale.total)}

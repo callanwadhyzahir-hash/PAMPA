@@ -257,6 +257,11 @@ export class SalesService {
       const product = byId.get(input.productId)!;
       const quantity = new Prisma.Decimal(input.quantity);
       const unitPrice = product.sale_price;
+      if (unitPrice.lessThanOrEqualTo(0)) {
+        throw new ConflictException(
+          `${product.name} no tiene un precio de venta válido.`,
+        );
+      }
       const discountPercent = new Prisma.Decimal(input.discountPercent ?? 0);
       const gross = this.money(unitPrice.mul(quantity));
       const discount = this.money(gross.mul(discountPercent).div(100));

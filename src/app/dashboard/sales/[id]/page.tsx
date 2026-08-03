@@ -26,6 +26,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import {
+  saleStatusLabel,
+  snapshotText,
+} from '@/lib/sales-presentation';
 import { ApiError } from '@/services/api';
 import {
   paymentsService,
@@ -200,7 +204,7 @@ export default function SaleDetailPage() {
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Estado</p>
             <Badge className="mt-2" variant="info">
-              {sale.status}
+              {saleStatusLabel(sale.status)}
             </Badge>
           </CardContent>
         </Card>
@@ -310,6 +314,29 @@ export default function SaleDetailPage() {
 
 function InvoiceView({ sale }: { sale: Sale }) {
   const invoice = sale.invoice!;
+  const companyName =
+    snapshotText(invoice.company_snapshot, 'legal_name') ??
+    snapshotText(invoice.company_snapshot, 'name') ??
+    'Empresa';
+  const companyTaxId = snapshotText(invoice.company_snapshot, 'tax_id');
+  const companyEmail = snapshotText(invoice.company_snapshot, 'email');
+  const companyPhone = snapshotText(invoice.company_snapshot, 'phone');
+  const clientPersonName = invoice.client_snapshot
+    ? [
+        snapshotText(invoice.client_snapshot, 'first_name'),
+        snapshotText(invoice.client_snapshot, 'last_name'),
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : '';
+  const clientBusinessName = snapshotText(
+    invoice.client_snapshot,
+    'business_name',
+  );
+  const clientName = invoice.client_snapshot
+    ? clientBusinessName || clientPersonName || 'Cliente'
+    : 'Consumidor final';
+  const clientTaxId = snapshotText(invoice.client_snapshot, 'tax_id');
   return (
     <section className="print-document rounded-xl border bg-white p-6">
       <div className="border-b pb-4 text-center">
@@ -321,24 +348,39 @@ function InvoiceView({ sale }: { sale: Sale }) {
       <div className="grid gap-4 py-4 text-sm sm:grid-cols-2">
         <div>
           <p className="font-medium">Empresa</p>
-          <pre className="mt-1 whitespace-pre-wrap font-sans text-xs text-muted-foreground">
-            {JSON.stringify(invoice.company_snapshot, null, 2)}
-          </pre>
+          <p className="mt-1 text-muted-foreground">{companyName}</p>
+          {companyTaxId ? (
+            <p className="text-muted-foreground">CUIT: {companyTaxId}</p>
+          ) : null}
+          {companyEmail ? (
+            <p className="text-muted-foreground">{companyEmail}</p>
+          ) : null}
+          {companyPhone ? (
+            <p className="text-muted-foreground">{companyPhone}</p>
+          ) : null}
         </div>
         <div>
           <p className="font-medium">Cliente</p>
-          <pre className="mt-1 whitespace-pre-wrap font-sans text-xs text-muted-foreground">
-            {JSON.stringify(
-              invoice.client_snapshot ?? { tipo: 'Consumidor final' },
-              null,
-              2,
-            )}
-          </pre>
+          <p className="mt-1 text-muted-foreground">{clientName}</p>
+          {clientTaxId ? (
+            <p className="text-muted-foreground">
+              CUIT/documento: {clientTaxId}
+            </p>
+          ) : null}
         </div>
       </div>
-      <p className="border-t pt-4 text-right text-lg font-semibold">
-        Total: {currency(sale.total)}
-      </p>
+      <dl className="ml-auto grid max-w-sm grid-cols-2 gap-x-6 gap-y-1 border-t pt-4 text-sm">
+        <dt className="text-muted-foreground">Subtotal</dt>
+        <dd className="text-right">{currency(sale.subtotal)}</dd>
+        <dt className="text-muted-foreground">Descuentos</dt>
+        <dd className="text-right">{currency(sale.discount_total)}</dd>
+        <dt className="text-muted-foreground">Impuestos</dt>
+        <dd className="text-right">{currency(sale.tax_total)}</dd>
+        <dt className="pt-2 text-base font-semibold">Total</dt>
+        <dd className="pt-2 text-right text-base font-semibold">
+          {currency(sale.total)}
+        </dd>
+      </dl>
     </section>
   );
 }

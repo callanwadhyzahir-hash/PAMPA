@@ -21,6 +21,10 @@ import {
   type Payment,
 } from '@/services/commercial/sales.service';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import {
+  paymentMethodLabel,
+  paymentStatusLabel,
+} from '@/lib/sales-presentation';
 
 export default function PaymentsPage() {
   const { user } = useAuthSession();
@@ -179,9 +183,7 @@ export default function PaymentsPage() {
                     </TableCell>
                     <TableCell>
                       {payment.payment_item
-                        .map((item) =>
-                          item.payment_method.replaceAll('_', ' '),
-                        )
+                        .map((item) => paymentMethodLabel(item.payment_method))
                         .join(', ')}
                     </TableCell>
                     <TableCell>{currency(payment.total)}</TableCell>
@@ -191,7 +193,9 @@ export default function PaymentsPage() {
                         : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="info">{payment.status}</Badge>
+                      <Badge variant="info">
+                        {paymentStatusLabel(payment.status)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">

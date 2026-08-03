@@ -96,6 +96,30 @@ describe('SalesService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('rejects products without a positive sale price', async () => {
+    repository.findProducts.mockResolvedValue([
+      {
+        id: 'product-a',
+        code: 'P-1',
+        name: 'Producto sin precio',
+        sale_price: new Prisma.Decimal(0),
+        tax_rate: new Prisma.Decimal(21),
+        tracks_stock: true,
+      },
+    ]);
+
+    await expect(
+      service.create(context, {
+        branchId: 'branch-a',
+        warehouseId: 'warehouse-a',
+        items: [{ productId: 'product-a', quantity: 1 }],
+      }),
+    ).rejects.toThrow(
+      'Producto sin precio no tiene un precio de venta válido.',
+    );
+    expect(repository.create).not.toHaveBeenCalled();
+  });
+
   it('rejects a second confirmation without touching stock', async () => {
     repository.findByIdTx.mockResolvedValue({ status: 'CONFIRMED' });
     await expect(service.confirm(context, 'sale-a')).rejects.toBeInstanceOf(

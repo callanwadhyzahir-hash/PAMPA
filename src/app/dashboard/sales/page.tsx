@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import { saleStatusLabel } from '@/lib/sales-presentation';
 import { salesService, type Sale } from '@/services/commercial/sales.service';
 
 export default function SalesPage() {
@@ -107,7 +108,9 @@ export default function SalesPage() {
                     <TableCell>{sale.branch.name}</TableCell>
                     <TableCell>{currency(sale.total)}</TableCell>
                     <TableCell>
-                      <Badge variant="info">{sale.status}</Badge>
+                      <Badge variant="info">
+                        {saleStatusLabel(sale.status)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Link

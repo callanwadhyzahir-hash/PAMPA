@@ -94,6 +94,19 @@ export default function SaleDetailPage() {
     }
   }
 
+  async function fiscalize(forceOutcome: 'APPROVED' | 'REJECTED') {
+    setSaving(true);
+    setError(null);
+    try {
+      await salesService.fiscalize(params.id, forceOutcome);
+      await load();
+    } catch (reason) {
+      setError(message(reason));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function pay(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -245,7 +258,9 @@ export default function SaleDetailPage() {
           </Table>
         </CardContent>
       </Card>
-      {sale.invoice ? <InvoiceView sale={sale} /> : null}
+      {sale.invoice ? (
+        <InvoiceView sale={sale} saving={saving} onFiscalize={fiscalize} />
+      ) : null}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent>
           <form onSubmit={pay}>
@@ -312,8 +327,42 @@ export default function SaleDetailPage() {
   );
 }
 
-function InvoiceView({ sale }: { sale: Sale }) {
+const FISCAL_STATUS_LABEL: Record<string, string> = {
+  NOT_REQUESTED: 'Sin solicitar',
+  PENDING: 'Pendiente',
+  APPROVED: 'Aprobada',
+  REJECTED: 'Rechazada',
+  ERROR: 'Error',
+};
+
+const FISCAL_STATUS_VARIANT: Record<
+  string,
+  'default' | 'success' | 'warning' | 'danger' | 'info'
+> = {
+  NOT_REQUESTED: 'default',
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'danger',
+  ERROR: 'danger',
+};
+
+function fiscalDate(value: string | null) {
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString('es-AR');
+}
+
+function InvoiceView({
+  sale,
+  saving,
+  onFiscalize,
+}: {
+  sale: Sale;
+  saving: boolean;
+  onFiscalize: (forceOutcome: 'APPROVED' | 'REJECTED') => void;
+}) {
   const invoice = sale.invoice!;
+  const isSimulated = invoice.fiscal_provider === 'MOCK';
+  const canFiscalize = invoice.fiscal_status === 'NOT_REQUESTED';
   const companyName =
     snapshotText(invoice.company_snapshot, 'legal_name') ??
     snapshotText(invoice.company_snapshot, 'name') ??
@@ -339,6 +388,11 @@ function InvoiceView({ sale }: { sale: Sale }) {
   const clientTaxId = snapshotText(invoice.client_snapshot, 'tax_id');
   return (
     <section className="print-document rounded-xl border bg-white p-6">
+      {isSimulated ? (
+        <div className="mb-4 rounded-lg border border-danger bg-red-50 p-3 text-center text-sm font-semibold text-danger">
+          NO VÁLIDA FISCALMENTE — MODO SIMULACIÓN
+        </div>
+      ) : null}
       <div className="border-b pb-4 text-center">
         <p className="text-xs font-semibold tracking-wide">
           {invoice.document_label}
@@ -381,6 +435,51 @@ function InvoiceView({ sale }: { sale: Sale }) {
           {currency(sale.total)}
         </dd>
       </dl>
+      <div className="mt-4 border-t pt-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">Estado fiscal</p>
+          <Badge variant={FISCAL_STATUS_VARIANT[invoice.fiscal_status]}>
+            {FISCAL_STATUS_LABEL[invoice.fiscal_status] ?? invoice.fiscal_status}
+          </Badge>
+          {isSimulated ? (
+            <Badge variant="warning">Simulado</Badge>
+          ) : null}
+        </div>
+        <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+          <dt className="text-muted-foreground">CAE</dt>
+          <dd>{invoice.cae ?? '—'}</dd>
+          <dt className="text-muted-foreground">Vencimiento CAE</dt>
+          <dd>{fiscalDate(invoice.cae_expiration)}</dd>
+          <dt className="text-muted-foreground">Punto de venta</dt>
+          <dd>{invoice.point_of_sale ?? '—'}</dd>
+          <dt className="text-muted-foreground">Comprobante fiscal</dt>
+          <dd>
+            {invoice.voucher_type_code && invoice.invoice_number
+              ? `${invoice.voucher_type_code}-${invoice.invoice_number}`
+              : '—'}
+          </dd>
+        </dl>
+        {invoice.fiscal_status === 'REJECTED' ||
+        invoice.fiscal_status === 'ERROR' ? (
+          <p className="mt-3 rounded-lg border border-danger bg-red-50 p-2 text-sm text-danger">
+            {invoice.arca_error_message ?? 'La fiscalización no pudo completarse.'}
+          </p>
+        ) : null}
+        {canFiscalize ? (
+          <div className="mt-4 flex flex-wrap gap-2 print:hidden">
+            <Button disabled={saving} onClick={() => onFiscalize('APPROVED')}>
+              Fiscalizar (simular aprobación)
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={saving}
+              onClick={() => onFiscalize('REJECTED')}
+            >
+              Fiscalizar (simular rechazo)
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

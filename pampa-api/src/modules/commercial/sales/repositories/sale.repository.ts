@@ -317,4 +317,95 @@ export class SaleRepository {
       }),
     ]);
   }
+
+  findInvoiceForFiscalization(
+    tx: TransactionClient,
+    companyId: string,
+    invoiceId: string,
+  ) {
+    return tx.invoice.findFirst({
+      where: { id: invoiceId, company_id: companyId },
+      select: {
+        id: true,
+        company_id: true,
+        point_of_sale: true,
+        voucher_type_code: true,
+        invoice_number: true,
+        fiscal_status: true,
+        items_snapshot: true,
+        totals_snapshot: true,
+        client_snapshot: true,
+      },
+    });
+  }
+
+  countFiscalAttempts(tx: TransactionClient, invoiceId: string) {
+    return tx.invoice_fiscal_attempt.count({
+      where: { invoice_id: invoiceId },
+    });
+  }
+
+  recordFiscalAttempt(
+    tx: TransactionClient,
+    data: {
+      invoiceId: string;
+      companyId: string;
+      attemptNumber: number;
+      environment: string;
+      status: string;
+      requestPayload: Prisma.InputJsonValue;
+      responsePayload?: Prisma.InputJsonValue;
+      errorCode?: string;
+      errorMessage?: string;
+    },
+  ) {
+    return tx.invoice_fiscal_attempt.create({
+      data: {
+        invoice_id: data.invoiceId,
+        company_id: data.companyId,
+        attempt_number: data.attemptNumber,
+        environment: data.environment,
+        status: data.status,
+        request_payload: data.requestPayload,
+        response_payload: data.responsePayload,
+        error_code: data.errorCode,
+        error_message: data.errorMessage,
+        finished_at: new Date(),
+      },
+    });
+  }
+
+  applyFiscalResult(
+    tx: TransactionClient,
+    invoiceId: string,
+    data: {
+      fiscalStatus: string;
+      fiscalProvider: string;
+      invoiceNumber?: string;
+      pointOfSale?: string;
+      voucherTypeCode?: string;
+      cae?: string;
+      caeExpiration?: Date;
+      arcaErrorCode?: string;
+      arcaErrorMessage?: string;
+      fiscalApprovedAt?: Date;
+    },
+  ) {
+    return tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        fiscal_status: data.fiscalStatus,
+        fiscal_provider: data.fiscalProvider,
+        invoice_number: data.invoiceNumber,
+        point_of_sale: data.pointOfSale,
+        voucher_type_code: data.voucherTypeCode,
+        cae: data.cae,
+        cae_expiration: data.caeExpiration,
+        arca_error_code: data.arcaErrorCode,
+        arca_error_message: data.arcaErrorMessage,
+        fiscal_requested_at: new Date(),
+        fiscal_approved_at: data.fiscalApprovedAt,
+      },
+    });
+  }
 }

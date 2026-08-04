@@ -19,6 +19,7 @@ import { ClientsModule } from './modules/commercial/clients/clients.module';
 import { SalesModule } from './modules/commercial/sales/sales.module';
 import { PaymentsModule } from './modules/commercial/payments/payments.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { FiscalModule } from './modules/fiscal/fiscal.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -45,6 +46,7 @@ import { HealthController } from './health.controller';
     SalesModule,
     PaymentsModule,
     AnalyticsModule,
+    FiscalModule.forRoot(),
   ],
   controllers: [HealthController],
 })

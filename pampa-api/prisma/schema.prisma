@@ -167,6 +167,7 @@ model invoice {
   issued_at              DateTime?                @db.Timestamptz(6)
   status                 String                   @default("ISSUED") @db.VarChar(20)
   fiscal_status          String                   @default("NOT_REQUESTED") @db.VarChar(20)
+  fiscal_provider        String                   @default("ARCA") @db.VarChar(10)
   point_of_sale          String?                  @db.VarChar(10)
   voucher_type_code      String?                  @db.VarChar(10)
   qr_data                String?

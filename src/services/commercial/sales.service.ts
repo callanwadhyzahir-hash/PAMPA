@@ -47,6 +47,13 @@ export interface Payment {
   user?: { id: string; first_name: string; last_name: string };
 }
 
+export type FiscalStatus =
+  | 'NOT_REQUESTED'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'ERROR';
+
 export interface InternalInvoice {
   id: string;
   internal_number: string;
@@ -57,6 +64,15 @@ export interface InternalInvoice {
   client_snapshot: Record<string, unknown> | null;
   items_snapshot: Array<Record<string, string>>;
   totals_snapshot: Record<string, string>;
+  fiscal_status: FiscalStatus;
+  fiscal_provider: 'ARCA' | 'MOCK';
+  invoice_number: string | null;
+  point_of_sale: string | null;
+  voucher_type_code: string | null;
+  cae: string | null;
+  cae_expiration: string | null;
+  arca_error_code: string | null;
+  arca_error_message: string | null;
 }
 
 export interface Sale {
@@ -127,6 +143,15 @@ export const salesService = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason }),
+      })
+    ).data;
+  },
+  async fiscalize(id: string, forceOutcome?: 'APPROVED' | 'REJECTED') {
+    return (
+      await apiFetch<ApiEnvelope<unknown>>(`/sales/${id}/fiscalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(forceOutcome ? { forceOutcome } : {}),
       })
     ).data;
   },

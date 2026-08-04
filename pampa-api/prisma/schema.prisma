@@ -155,27 +155,59 @@ model currency {
 }
 
 model invoice {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_id       String    @db.Uuid
-  sale_id          String    @unique @db.Uuid
-  internal_number  String    @unique @db.VarChar(50)
-  document_label   String    @default("COMPROBANTE INTERNO — NO FISCAL") @db.VarChar(100)
-  invoice_number   String?   @db.VarChar(50)
-  invoice_type     String?   @db.VarChar(10)
-  cae              String?   @db.VarChar(50)
-  cae_expiration   DateTime? @db.Date
-  issued_at        DateTime? @db.Timestamptz(6)
-  status           String    @default("ISSUED") @db.VarChar(20)
-  company_snapshot Json
-  client_snapshot  Json?
-  items_snapshot   Json
-  totals_snapshot  Json
-  created_at       DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
-  sale             sale      @relation(fields: [sale_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_sale_company")
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id             String                   @db.Uuid
+  sale_id                String                   @unique @db.Uuid
+  internal_number        String                   @unique @db.VarChar(50)
+  document_label         String                   @default("COMPROBANTE INTERNO — NO FISCAL") @db.VarChar(100)
+  invoice_number         String?                  @db.VarChar(50)
+  invoice_type           String?                  @db.VarChar(10)
+  cae                    String?                  @db.VarChar(50)
+  cae_expiration         DateTime?                @db.Date
+  issued_at              DateTime?                @db.Timestamptz(6)
+  status                 String                   @default("ISSUED") @db.VarChar(20)
+  fiscal_status          String                   @default("NOT_REQUESTED") @db.VarChar(20)
+  point_of_sale          String?                  @db.VarChar(10)
+  voucher_type_code      String?                  @db.VarChar(10)
+  qr_data                String?
+  arca_error_code        String?                  @db.VarChar(50)
+  arca_error_message     String?
+  fiscal_requested_at    DateTime?                @db.Timestamptz(6)
+  fiscal_approved_at     DateTime?                @db.Timestamptz(6)
+  company_snapshot       Json
+  client_snapshot        Json?
+  items_snapshot         Json
+  totals_snapshot        Json
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  sale                   sale                     @relation(fields: [sale_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_sale_company")
+  invoice_fiscal_attempt invoice_fiscal_attempt[]
 
   @@unique([sale_id, company_id], map: "uq_invoice_sale_company")
+  @@unique([id, company_id], map: "uq_invoice_id_company")
+  @@unique([company_id, point_of_sale, voucher_type_code, invoice_number], map: "uq_invoice_fiscal_document")
   @@index([invoice_number], map: "idx_invoice_number")
+  @@index([fiscal_status], map: "idx_invoice_fiscal_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model invoice_fiscal_attempt {
+  id               String    @id(map: "pk_invoice_fiscal_attempt") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id       String    @db.Uuid
+  invoice_id       String    @db.Uuid
+  attempt_number   Int
+  environment      String    @db.VarChar(20)
+  status           String    @db.VarChar(20)
+  request_payload  Json
+  response_payload Json?
+  error_code       String?   @db.VarChar(50)
+  error_message    String?
+  started_at       DateTime  @default(now()) @db.Timestamptz(6)
+  finished_at      DateTime? @db.Timestamptz(6)
+  invoice          invoice   @relation(fields: [invoice_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoice_fiscal_attempt_invoice_company")
+
+  @@unique([invoice_id, attempt_number], map: "uq_invoice_fiscal_attempt_number")
+  @@index([company_id, started_at], map: "idx_invoice_fiscal_attempt_company_started")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments

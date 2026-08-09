@@ -74,7 +74,7 @@ export function WaitlistForm() {
       </div>
       <div className="sr-only" aria-hidden="true"><label htmlFor="website">Sitio web</label><input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" /></div>
       <label className="flex items-start gap-3 text-sm leading-5 text-[#a7aa9d]"><input required name="consent" type="checkbox" className="mt-1 size-4 accent-[#b8e26b]" />Acepto recibir novedades relacionadas con PAMPA y leí la <a href="/privacidad" className="underline underline-offset-4 hover:text-[#f2f1e8]">política de privacidad</a>.</label>
-      <button type="submit" disabled={isSubmitting} className="w-full bg-[#b8e26b] px-5 py-3 text-sm font-semibold text-[#0b0d0a] transition-colors hover:bg-[#d2f58a] disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit">{isSubmitting ? "Registrando…" : "Unirme a la lista de espera"}</button>
+      <button type="submit" disabled={isSubmitting} className="w-full bg-[#b8e26b] px-5 py-3 text-sm font-semibold text-[#0b0d0a] transition-colors hover:bg-[#d2f58a] disabled:cursor-not-allowed disabled:opacity-60 sm:w-fit">{isSubmitting ? "Enviando…" : "Solicitar acceso"}</button>
       {state.kind !== "idle" && <p role="status" className={`text-sm leading-6 ${state.kind === "error" ? "text-[#d6b58a]" : "text-[#b8e26b]"}`}>{state.kind === "success" ? getSuccessMessage(state.message) : state.message}</p>}
     </form>
   );

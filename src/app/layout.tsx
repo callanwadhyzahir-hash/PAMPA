@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://pampa-erp.com"),
   title: "PAMPA — ERP inteligente para empresas argentinas",
   description:
-    "PAMPA es una plataforma de gestión en desarrollo para PyMEs argentinas. Empresas, sucursales, clientes, stock, ventas y automatización inteligente en un solo lugar.",
+    "PAMPA es un ERP para comercios argentinos, ya en Beta. Empresas, sucursales, clientes, productos, stock, ventas, pagos y reportes en un solo lugar.",
   alternates: {
     canonical: "/",
   },
@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     siteName: "PAMPA",
     title: "PAMPA — ERP inteligente para empresas argentinas",
     description:
-      "Una nueva plataforma de gestión para PyMEs argentinas. Beta privada: 28 de agosto de 2026.",
+      "ERP para comercios argentinos, ya en Beta con acceso limitado. Ventas, stock, clientes, pagos y reportes en un solo lugar.",
   },
   twitter: {
     card: "summary_large_image",
     title: "PAMPA — ERP inteligente para empresas argentinas",
     description:
-      "Una nueva plataforma de gestión para PyMEs argentinas. Beta privada: 28 de agosto de 2026.",
+      "ERP para comercios argentinos, ya en Beta con acceso limitado. Ventas, stock, clientes, pagos y reportes en un solo lugar.",
   },
 };
 

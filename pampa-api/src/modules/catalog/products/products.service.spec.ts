@@ -104,6 +104,26 @@ describe('ProductsService', () => {
     expect(result.items[0].low_stock).toBe(true);
   });
 
+  it('resolves an existing product by its exact barcode', async () => {
+    repository.findByBarcode.mockResolvedValue(product);
+
+    const result = await service.findByBarcode(context, ' 779000000001 ');
+
+    expect(repository.findByBarcode).toHaveBeenCalledWith(
+      context.companyId,
+      '779000000001',
+    );
+    expect(result.id).toBe('product-a');
+  });
+
+  it('throws 404 for a barcode with no match in the tenant, never returning a product', async () => {
+    repository.findByBarcode.mockResolvedValue(null);
+
+    await expect(
+      service.findByBarcode(context, 'unknown-barcode'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('returns neutral 404 for a foreign product', async () => {
     repository.findById.mockResolvedValue(null);
 

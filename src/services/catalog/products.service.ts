@@ -81,6 +81,13 @@ export const productsService = {
       await apiFetch<ApiEnvelope<ProductPage>>(`/products?${query.toString()}`)
     ).data;
   },
+  async findByBarcode(barcode: string) {
+    return (
+      await apiFetch<ApiEnvelope<Product>>(
+        `/products/barcode/${encodeURIComponent(barcode)}`,
+      )
+    ).data;
+  },
   async create(input: ProductInput) {
     return (
       await apiFetch<ApiEnvelope<Product>>('/products', {

@@ -25,7 +25,7 @@ export function LandingHeader() {
         </nav>
         <div className="hidden items-center gap-4 sm:flex">
           <a href="/login" className="text-sm text-[#a7aa9d] transition-colors hover:text-[#f2f1e8]">Iniciar sesión</a>
-          <a href="#lista" className="border border-[#b8e26b] bg-[#b8e26b] px-4 py-2 text-sm font-semibold text-[#0b0d0a] transition-colors hover:bg-[#d2f58a]">Unirme a la beta</a>
+          <a href="#lista" className="border border-[#b8e26b] bg-[#b8e26b] px-4 py-2 text-sm font-semibold text-[#0b0d0a] transition-colors hover:bg-[#d2f58a]">Solicitar acceso</a>
         </div>
         <button type="button" className="landing-menu-toggle size-10 place-items-center text-[#f2f1e8]" aria-label={isOpen ? "Cerrar menú" : "Abrir menú"} aria-expanded={isOpen} aria-controls="mobile-navigation" onClick={() => setIsOpen((open) => !open)}>
           {isOpen ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -36,7 +36,7 @@ export function LandingHeader() {
           <div className="mx-auto grid max-w-7xl gap-1">
             {links.map((link) => <a key={link.href} href={link.href} onClick={closeMenu} className="py-3 text-sm text-[#a7aa9d] hover:text-[#f2f1e8]">{link.label}</a>)}
             <a href="/login" onClick={closeMenu} className="py-3 text-sm text-[#f2f1e8]">Iniciar sesión</a>
-            <a href="#lista" onClick={closeMenu} className="mt-2 bg-[#b8e26b] px-4 py-3 text-center text-sm font-semibold text-[#0b0d0a]">Unirme a la beta</a>
+            <a href="#lista" onClick={closeMenu} className="mt-2 bg-[#b8e26b] px-4 py-3 text-center text-sm font-semibold text-[#0b0d0a]">Solicitar acceso</a>
           </div>
         </nav>
       )}

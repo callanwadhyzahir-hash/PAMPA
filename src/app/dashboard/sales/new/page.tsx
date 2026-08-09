@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -41,6 +47,8 @@ export default function NewSalePage() {
   const [warehouseId, setWarehouseId] = useState('');
   const [clientId, setClientId] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [scanningBarcode, setScanningBarcode] = useState(false);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
@@ -85,12 +93,49 @@ export default function NewSalePage() {
   }, [productSearch, products]);
 
   function addProduct(product: Product) {
-    if (items.some((item) => item.productId === product.id)) return;
-    setItems((current) => [
-      ...current,
-      { productId: product.id, quantity: '1', discountPercent: '0' },
-    ]);
+    setItems((current) => {
+      const existing = current.find((item) => item.productId === product.id);
+      if (existing) {
+        return current.map((item) =>
+          item.productId === product.id
+            ? { ...item, quantity: String(Number(item.quantity) + 1) }
+            : item,
+        );
+      }
+      return [
+        ...current,
+        { productId: product.id, quantity: '1', discountPercent: '0' },
+      ];
+    });
     setProductSearch('');
+  }
+
+  async function handleBarcodeScan(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const inputEl = event.currentTarget;
+    const barcode = productSearch.trim();
+    if (!barcode || scanningBarcode) return;
+    setScanningBarcode(true);
+    setBarcodeError(null);
+    try {
+      // Barcode always resolves via the backend exact-match lookup, never
+      // via the local `products` filter: that list is capped to the first
+      // 100 active products and matches by substring, so it can miss or
+      // mismatch products in larger catalogs.
+      const product = await productsService.findByBarcode(barcode);
+      setProducts((current) =>
+        current.some((row) => row.id === product.id)
+          ? current
+          : [...current, product],
+      );
+      addProduct(product);
+    } catch {
+      setBarcodeError('No se encontró un producto con este código de barras.');
+    } finally {
+      setScanningBarcode(false);
+      inputEl.focus();
+    }
   }
 
   async function submit(event: FormEvent) {
@@ -186,8 +231,15 @@ export default function NewSalePage() {
             <Input
               placeholder="Buscar por nombre, SKU o escanear código"
               value={productSearch}
-              onChange={(event) => setProductSearch(event.target.value)}
+              onChange={(event) => {
+                setProductSearch(event.target.value);
+                setBarcodeError(null);
+              }}
+              onKeyDown={handleBarcodeScan}
             />
+            {barcodeError ? (
+              <p className="text-sm text-destructive">{barcodeError}</p>
+            ) : null}
             {productSearch ? (
               <div className="max-h-52 overflow-y-auto rounded-lg border">
                 {matchingProducts.map((product) => (

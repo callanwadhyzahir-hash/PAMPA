@@ -11,6 +11,7 @@ const context: SecurityContext = {
   companyId: 'company-a',
   branchId: null,
   sessionId: 'session-a',
+  tokenVersion: 1,
   email: 'owner@example.com',
   roles: ['OWNER'],
   permissions: [],
@@ -83,6 +84,25 @@ describe('SalesService', () => {
         total: new Prisma.Decimal(217.8),
       }),
     );
+  });
+
+  it('blocks creating a sale against a branch owned by another company and never persists it', async () => {
+    // findResources runs company-scoped Prisma lookups (WHERE company_id = :companyId);
+    // a branch that belongs to another tenant resolves to null exactly like this.
+    repository.findResources.mockResolvedValue([
+      null,
+      { id: 'warehouse-a' },
+      { id: 'client-a' },
+    ]);
+    await expect(
+      service.create(context, {
+        branchId: 'branch-from-company-b',
+        warehouseId: 'warehouse-a',
+        clientId: 'client-a',
+        items: [{ productId: 'product-a', quantity: 1 }],
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(repository.create).not.toHaveBeenCalled();
   });
 
   it('returns 404 when a product belongs to another tenant', async () => {

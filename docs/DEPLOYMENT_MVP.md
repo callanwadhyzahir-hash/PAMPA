@@ -1,5 +1,11 @@
 # Despliegue del MVP
 
+> **LEGACY:** Este documento describe un despliegue en Render y ya no
+> refleja la infraestructura definitiva de PAMPA. La arquitectura de
+> producción es Vercel (frontend) + Railway (backend API + PostgreSQL).
+> Se conserva como referencia histórica; no seguir estos pasos para
+> desplegar.
+
 ## Alcance
 
 La primera versión pública habilita el flujo operativo de clientes, productos y

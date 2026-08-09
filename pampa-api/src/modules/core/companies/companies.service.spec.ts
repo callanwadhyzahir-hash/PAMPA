@@ -21,6 +21,8 @@ const contextA: SecurityContext = {
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   companyId: companyA.id,
   branchId: null,
+  sessionId: 'session-a',
+  tokenVersion: 1,
   email: 'user-a@example.com',
   roles: ['VIEWER'],
   permissions: ['companies.read'],

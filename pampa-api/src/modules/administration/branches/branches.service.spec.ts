@@ -8,6 +8,8 @@ const context: SecurityContext = {
   userId: 'actor',
   companyId: 'company-a',
   branchId: null,
+  sessionId: 'session-actor',
+  tokenVersion: 1,
   email: 'actor@example.com',
   roles: ['OWNER'],
   permissions: [],

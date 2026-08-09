@@ -11,6 +11,7 @@ const context: SecurityContext = {
   companyId: 'company-a',
   branchId: null,
   sessionId: 'session-a',
+  tokenVersion: 1,
   email: 'owner@example.com',
   roles: ['OWNER'],
   permissions: [],
@@ -74,7 +75,7 @@ describe('PaymentsService', () => {
       payment: [{ id: 'payment-old', total: new Prisma.Decimal(40) }],
     });
     await service.create(context, 'sale-a', {
-      items: [{ method: 'TRANSFER', amount: 60 }],
+      items: [{ method: 'BANK_TRANSFER', amount: 60 }],
     });
     expect(repository.updateSaleStatus).toHaveBeenCalledWith(
       tx,

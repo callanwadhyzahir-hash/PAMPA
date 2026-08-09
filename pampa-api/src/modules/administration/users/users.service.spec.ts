@@ -14,6 +14,8 @@ const context: SecurityContext = {
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   companyId: '11111111-1111-4111-8111-111111111111',
   branchId: null,
+  sessionId: 'session-actor',
+  tokenVersion: 1,
   email: 'actor@example.com',
   roles: ['OWNER'],
   permissions: [],

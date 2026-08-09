@@ -290,7 +290,10 @@ export class AuthController {
       secure: production,
       sameSite: 'lax' as const,
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      path: '/auth',
+      // '/' (not '/auth'): the browser only ever calls /api/backend/*
+      // (see src/app/api/backend/[...path]/route.ts), so a narrower path
+      // never matches and the cookie would never be sent back on refresh.
+      path: '/',
     };
   }
 

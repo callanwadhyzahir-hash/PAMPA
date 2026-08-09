@@ -1,3 +1,7 @@
+# LEGACY: Render ya no es la infraestructura de despliegue de PAMPA.
+# La arquitectura de producción definitiva es Vercel (frontend) + Railway
+# (backend API + PostgreSQL). Este archivo se conserva como referencia
+# histórica y no debe usarse para desplegar.
 services:
   - type: web
     name: pampa-api

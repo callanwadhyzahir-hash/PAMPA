@@ -5,7 +5,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionGuard } from './guards/permission.guard';
 
 interface GuardProvider {
-  provide: symbol;
+  provide: string | symbol;
   useClass: unknown;
 }
 

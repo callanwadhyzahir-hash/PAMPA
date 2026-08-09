@@ -8,6 +8,8 @@ const securityContext: SecurityContext = {
   userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   companyId: '11111111-1111-4111-8111-111111111111',
   branchId: null,
+  sessionId: 'session-a',
+  tokenVersion: 1,
   email: 'user-a@example.com',
   roles: ['VIEWER'],
   permissions: ['companies.read'],

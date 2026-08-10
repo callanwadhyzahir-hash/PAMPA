@@ -1,19 +1,16 @@
 'use client';
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type KeyboardEvent,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Trash2 } from 'lucide-react';
+import { Camera, Plus, Trash2 } from 'lucide-react';
 
+import { BarcodeCameraDialog } from '@/components/barcode';
 import { LoadingState } from '@/components/pampa-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useBarcodeEntry } from '@/hooks/use-barcode-entry';
+import { addProductToDraft, type DraftItem } from '@/lib/sales/draft-items';
 import { ApiError } from '@/services/api';
 import { branchesService } from '@/services/administration/branches.service';
 import type { BranchDetail } from '@/services/administration/types';
@@ -31,12 +28,6 @@ import {
   type Warehouse,
 } from '@/services/inventory/warehouses.service';
 
-interface DraftItem {
-  productId: string;
-  quantity: string;
-  discountPercent: string;
-}
-
 export default function NewSalePage() {
   const router = useRouter();
   const [branches, setBranches] = useState<BranchDetail[]>([]);
@@ -47,8 +38,9 @@ export default function NewSalePage() {
   const [warehouseId, setWarehouseId] = useState('');
   const [clientId, setClientId] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [scanningBarcode, setScanningBarcode] = useState(false);
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const productSearchRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
@@ -93,50 +85,29 @@ export default function NewSalePage() {
   }, [productSearch, products]);
 
   function addProduct(product: Product) {
-    setItems((current) => {
-      const existing = current.find((item) => item.productId === product.id);
-      if (existing) {
-        return current.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: String(Number(item.quantity) + 1) }
-            : item,
-        );
-      }
-      return [
-        ...current,
-        { productId: product.id, quantity: '1', discountPercent: '0' },
-      ];
-    });
+    setItems((current) => addProductToDraft(current, product.id));
     setProductSearch('');
   }
 
-  async function handleBarcodeScan(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    const inputEl = event.currentTarget;
-    const barcode = productSearch.trim();
-    if (!barcode || scanningBarcode) return;
-    setScanningBarcode(true);
-    setBarcodeError(null);
-    try {
-      // Barcode always resolves via the backend exact-match lookup, never
-      // via the local `products` filter: that list is capped to the first
-      // 100 active products and matches by substring, so it can miss or
-      // mismatch products in larger catalogs.
-      const product = await productsService.findByBarcode(barcode);
-      setProducts((current) =>
-        current.some((row) => row.id === product.id)
-          ? current
-          : [...current, product],
-      );
-      addProduct(product);
-    } catch {
-      setBarcodeError('No se encontró un producto con este código de barras.');
-    } finally {
-      setScanningBarcode(false);
-      inputEl.focus();
-    }
+  async function resolveBarcode(barcode: string) {
+    // Barcode always resolves via the backend exact-match lookup, never via
+    // the local `products` filter: that list is capped to the first 100
+    // active products and matches by substring, so it can miss or mismatch
+    // products in larger catalogs.
+    const product = await productsService.findByBarcode(barcode);
+    setProducts((current) =>
+      current.some((row) => row.id === product.id) ? current : [...current, product],
+    );
+    addProduct(product);
   }
+
+  const barcodeEntry = useBarcodeEntry({
+    value: productSearch,
+    onScan: resolveBarcode,
+    onError: () =>
+      setBarcodeError('No se encontró un producto con este código de barras.'),
+    inputRef: productSearchRef,
+  });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -228,18 +199,45 @@ export default function NewSalePage() {
             <CardTitle>Productos</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              placeholder="Buscar por nombre, SKU o escanear código"
-              value={productSearch}
-              onChange={(event) => {
-                setProductSearch(event.target.value);
-                setBarcodeError(null);
-              }}
-              onKeyDown={handleBarcodeScan}
-            />
+            <div className="flex gap-2">
+              <Input
+                ref={productSearchRef}
+                placeholder="Buscar por nombre, SKU o escanear código"
+                value={productSearch}
+                onChange={(event) => {
+                  setProductSearch(event.target.value);
+                  setBarcodeError(null);
+                }}
+                onKeyDown={(event) => {
+                  setBarcodeError(null);
+                  barcodeEntry.onKeyDown(event);
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Escanear con cámara"
+                onClick={() => setCameraOpen(true)}
+              >
+                <Camera className="size-4" aria-hidden />
+              </Button>
+            </div>
             {barcodeError ? (
               <p className="text-sm text-destructive">{barcodeError}</p>
             ) : null}
+            <BarcodeCameraDialog
+              open={cameraOpen}
+              onOpenChange={setCameraOpen}
+              onDetected={(value) => {
+                setBarcodeError(null);
+                resolveBarcode(value).catch(() =>
+                  setBarcodeError(
+                    'No se encontró un producto con este código de barras.',
+                  ),
+                );
+              }}
+            />
             {productSearch ? (
               <div className="max-h-52 overflow-y-auto rounded-lg border">
                 {matchingProducts.map((product) => (

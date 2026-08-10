@@ -58,6 +58,12 @@ export class ProductsController {
     return this.service.findByBarcode(context, barcode);
   }
 
+  @Post('barcode/generate')
+  @RequirePermissions(PRODUCT_PERMISSIONS.create)
+  generateBarcode(@CurrentSecurityContext() context: SecurityContext) {
+    return this.service.generateBarcode(context);
+  }
+
   @Get(':id/stock')
   @RequirePermissions(PRODUCT_PERMISSIONS.stockRead)
   findStock(

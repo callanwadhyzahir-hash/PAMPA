@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowLeftRight, Boxes, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeftRight, Boxes, Camera, ScanLine, SlidersHorizontal } from 'lucide-react';
 
+import { BarcodeCameraDialog } from '@/components/barcode';
 import { ErrorState, LoadingState } from '@/components/pampa-ui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import { useBarcodeEntry } from '@/hooks/use-barcode-entry';
 import { ApiError } from '@/services/api';
 import {
   productsService,
@@ -58,6 +60,7 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [action, setAction] = useState<Action>(null);
+  const [scanOpen, setScanOpen] = useState(false);
   const [productId, setProductId] = useState('');
   const [warehouseId, setWarehouseId] = useState('');
   const [targetWarehouseId, setTargetWarehouseId] = useState('');
@@ -156,6 +159,12 @@ export default function StockPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {canAdjust ? (
+            <Button variant="outline" onClick={() => setScanOpen(true)}>
+              <ScanLine className="size-4" aria-hidden />
+              Escanear producto
+            </Button>
+          ) : null}
           {canAdjust ? (
             <Button variant="outline" onClick={() => resetAction('adjust')}>
               <SlidersHorizontal className="size-4" aria-hidden />
@@ -338,7 +347,218 @@ export default function StockPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <QuickScanDialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        warehouses={warehouses}
+        onAdjusted={load}
+      />
     </main>
+  );
+}
+
+function QuickScanDialog({
+  open,
+  onOpenChange,
+  warehouses,
+  onAdjusted,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  warehouses: Warehouse[];
+  onAdjusted: () => Promise<void>;
+}) {
+  const [barcode, setBarcode] = useState('');
+  const [product, setProduct] = useState<Product | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [warehouseId, setWarehouseId] = useState('');
+  const [movementType, setMovementType] =
+    useState<'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT'>('ADJUSTMENT_IN');
+  const [quantity, setQuantity] = useState('');
+  const [reason, setReason] = useState('Ajuste por escaneo');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function resetForm() {
+    setProduct(null);
+    setQuantity('');
+    setWarehouseId('');
+    setMovementType('ADJUSTMENT_IN');
+    setReason('Ajuste por escaneo');
+  }
+
+  async function resolveBarcode(value: string) {
+    setError(null);
+    try {
+      // Exact tenant-scoped backend lookup, same contract as Ventas.
+      const found = await productsService.findByBarcode(value);
+      if (!found.tracks_stock) {
+        setError(`${found.name} no controla stock.`);
+        return;
+      }
+      resetForm();
+      setProduct(found);
+    } catch {
+      setError('No se encontró un producto con este código de barras.');
+    }
+  }
+
+  const barcodeEntry = useBarcodeEntry({
+    value: barcode,
+    onScan: async (value) => {
+      await resolveBarcode(value);
+      setBarcode('');
+    },
+    inputRef,
+    disabled: saving,
+  });
+
+  async function confirm(event: FormEvent) {
+    event.preventDefault();
+    if (!product) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await stockService.adjust({
+        productId: product.id,
+        warehouseId,
+        movementType,
+        quantity: Number(quantity),
+        reason,
+      });
+      await onAdjusted();
+      resetForm();
+      inputRef.current?.focus();
+    } catch (reasonValue) {
+      setError(errorMessage(reasonValue));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) {
+          resetForm();
+          setBarcode('');
+          setError(null);
+        }
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Escanear producto</DialogTitle>
+          <DialogDescription>
+            Escaneá con el lector USB o la cámara para ajustar stock sin
+            buscar el producto manualmente. La cantidad siempre se confirma
+            antes de aplicar el ajuste.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="flex gap-2">
+            <Input
+              ref={inputRef}
+              autoFocus
+              placeholder="Escanear código de barras"
+              value={barcode}
+              onChange={(event) => setBarcode(event.target.value)}
+              onKeyDown={barcodeEntry.onKeyDown}
+              disabled={saving}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Escanear con cámara"
+              onClick={() => setCameraOpen(true)}
+            >
+              <Camera className="size-4" aria-hidden />
+            </Button>
+          </div>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {product ? (
+            <form onSubmit={confirm} className="space-y-3 rounded-xl border p-3">
+              <div>
+                <p className="font-medium">{product.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {product.code} · Stock actual {product.total_stock}{' '}
+                  {product.unit}
+                </p>
+              </div>
+              <SelectField
+                label="Depósito"
+                value={warehouseId}
+                onChange={setWarehouseId}
+                options={warehouses.map((warehouse) => ({
+                  value: warehouse.id,
+                  label: `${warehouse.name} · ${warehouse.branch.name}`,
+                }))}
+              />
+              <label className="space-y-1.5 text-sm font-medium">
+                <span>Tipo</span>
+                <select
+                  className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm"
+                  value={movementType}
+                  onChange={(event) =>
+                    setMovementType(event.target.value as typeof movementType)
+                  }
+                >
+                  <option value="ADJUSTMENT_IN">Ingreso</option>
+                  <option value="ADJUSTMENT_OUT">Egreso</option>
+                </select>
+              </label>
+              <label className="space-y-1.5 text-sm font-medium">
+                <span>Cantidad</span>
+                <Input
+                  required
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={quantity}
+                  onChange={(event) => setQuantity(event.target.value)}
+                />
+              </label>
+              <label className="space-y-1.5 text-sm font-medium">
+                <span>Motivo</span>
+                <Input
+                  required
+                  minLength={3}
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </label>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={resetForm}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? 'Guardando' : 'Confirmar ajuste'}
+                </Button>
+              </div>
+            </form>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            Cerrar
+          </Button>
+        </DialogFooter>
+        <BarcodeCameraDialog
+          open={cameraOpen}
+          onOpenChange={setCameraOpen}
+          onDetected={(value) => void resolveBarcode(value)}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1,8 +1,21 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { AlertTriangle, Package, Pencil, Plus, Search } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  AlertTriangle,
+  Camera,
+  Package,
+  Pencil,
+  Printer,
+  Plus,
+  Search,
+  Wand2,
+} from 'lucide-react';
 
+import {
+  BarcodeCameraDialog,
+  PrintBarcodeLabelsDialog,
+} from '@/components/barcode';
 import { ErrorState, LoadingState } from '@/components/pampa-ui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +44,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import { useBarcodeEntry } from '@/hooks/use-barcode-entry';
 import { ApiError } from '@/services/api';
 import {
   productCategoriesService,
@@ -88,6 +102,7 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [detail, setDetail] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [printing, setPrinting] = useState<Product | null>(null);
 
   const canCreate = user?.permissions.includes('products.create') ?? false;
   const canUpdate = user?.permissions.includes('products.update') ?? false;
@@ -358,6 +373,16 @@ export default function ProductsPage() {
                               Editar
                             </Button>
                           ) : null}
+                          {product.barcode ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setPrinting(product)}
+                            >
+                              <Printer className="size-3.5" aria-hidden />
+                              Imprimir etiqueta
+                            </Button>
+                          ) : null}
                           {canDelete || canUpdate ? (
                             <Button
                               size="sm"
@@ -437,6 +462,17 @@ export default function ProductsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {printing ? (
+        <PrintBarcodeLabelsDialog
+          open={Boolean(printing)}
+          onOpenChange={(next) => !next && setPrinting(null)}
+          barcode={printing.barcode ?? ''}
+          productName={printing.name}
+          sku={printing.code}
+          price={money(printing, printing.sale_price)}
+        />
+      ) : null}
     </main>
   );
 }
@@ -460,8 +496,32 @@ function ProductDialog({
   onClose: () => void;
   onSubmit: (event: FormEvent) => Promise<void>;
 }) {
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
+
   function field<K extends keyof ProductForm>(key: K, value: ProductForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  const barcodeEntry = useBarcodeEntry({
+    value: form.barcode,
+    onScan: (barcode) => field('barcode', barcode),
+    inputRef: barcodeInputRef,
+  });
+
+  async function generateBarcode() {
+    setGenerating(true);
+    setBarcodeError(null);
+    try {
+      const { barcode } = await productsService.generateBarcode();
+      field('barcode', barcode);
+    } catch (reason) {
+      setBarcodeError(errorMessage(reason));
+    } finally {
+      setGenerating(false);
+    }
   }
 
   return (
@@ -492,9 +552,41 @@ function ProductDialog({
               />
             </Field>
             <Field label="Código de barras">
-              <Input
-                value={form.barcode}
-                onChange={(event) => field('barcode', event.target.value)}
+              <div className="flex gap-2">
+                <Input
+                  ref={barcodeInputRef}
+                  value={form.barcode}
+                  onChange={(event) => field('barcode', event.target.value)}
+                  onKeyDown={barcodeEntry.onKeyDown}
+                  placeholder="Escanear o generar"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Escanear con cámara"
+                  onClick={() => setCameraOpen(true)}
+                >
+                  <Camera className="size-4" aria-hidden />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Generar código interno"
+                  disabled={generating}
+                  onClick={() => void generateBarcode()}
+                >
+                  <Wand2 className="size-4" aria-hidden />
+                </Button>
+              </div>
+              {barcodeError ? (
+                <p className="text-xs text-destructive">{barcodeError}</p>
+              ) : null}
+              <BarcodeCameraDialog
+                open={cameraOpen}
+                onOpenChange={setCameraOpen}
+                onDetected={(value) => field('barcode', value)}
               />
             </Field>
             <Field label="Categoría">

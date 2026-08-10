@@ -103,6 +103,15 @@ body:has(.pampa-landing) { overflow-x: hidden; }
   .landing-menu-toggle { display: none !important; }
 }
 
+/* Scoped print target for barcode label sheets (see BarcodeLabelPrintSheet):
+   only takes effect while #barcode-print-sheet is actually mounted, so it
+   never affects printing on any other page. */
+@media print {
+  body:has(#barcode-print-sheet) > *:not(#barcode-print-sheet) {
+    display: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }

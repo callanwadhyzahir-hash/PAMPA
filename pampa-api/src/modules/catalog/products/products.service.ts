@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import {
   ConflictException,
   Injectable,
@@ -10,6 +12,12 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductRepository } from './repositories/product.repository';
+
+// Code 128-safe alphabet without visually ambiguous characters (0/O, 1/I).
+const BARCODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const BARCODE_NAMESPACE = 'PMP';
+const BARCODE_SUFFIX_LENGTH = 12;
+const BARCODE_GENERATION_ATTEMPTS = 5;
 
 @Injectable()
 export class ProductsService {
@@ -50,6 +58,31 @@ export class ProductsService {
     );
     if (!product) throw new NotFoundException('Producto no encontrado.');
     return this.withStockSummary(product);
+  }
+
+  async generateBarcode(
+    context: SecurityContext,
+  ): Promise<{ barcode: string }> {
+    for (let attempt = 0; attempt < BARCODE_GENERATION_ATTEMPTS; attempt++) {
+      const candidate = this.buildBarcodeCandidate();
+      const taken = await this.repository.existsByBarcode(
+        context.companyId,
+        candidate,
+      );
+      if (!taken) return { barcode: candidate };
+    }
+    throw new ConflictException(
+      'No se pudo generar un código de barras único. Intentá nuevamente.',
+    );
+  }
+
+  private buildBarcodeCandidate(): string {
+    const bytes = randomBytes(BARCODE_SUFFIX_LENGTH);
+    let suffix = '';
+    for (let i = 0; i < BARCODE_SUFFIX_LENGTH; i++) {
+      suffix += BARCODE_ALPHABET[bytes[i] % BARCODE_ALPHABET.length];
+    }
+    return `${BARCODE_NAMESPACE}-${suffix}`;
   }
 
   async create(context: SecurityContext, input: CreateProductDto) {

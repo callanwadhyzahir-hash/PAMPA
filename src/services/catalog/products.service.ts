@@ -88,6 +88,14 @@ export const productsService = {
       )
     ).data;
   },
+  async generateBarcode() {
+    return (
+      await apiFetch<ApiEnvelope<{ barcode: string }>>(
+        '/products/barcode/generate',
+        { method: 'POST' },
+      )
+    ).data;
+  },
   async create(input: ProductInput) {
     return (
       await apiFetch<ApiEnvelope<Product>>('/products', {

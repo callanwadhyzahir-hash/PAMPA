@@ -7,15 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/waitlist.test.ts"
+    "test": "node --experimental-strip-types --test tests/waitlist.test.ts tests/barcode-format.test.ts tests/barcode-camera-detector.test.ts tests/draft-items.test.ts tests/use-barcode-entry.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "^5.5.7",
     "@supabase/supabase-js": "^2.111.0",
+    "barcode-detector": "^3.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
+    "jsbarcode": "^3.12.3",
     "lucide-react": "^1.25.0",
     "next": "^16.2.12",
     "react": "19.2.4",

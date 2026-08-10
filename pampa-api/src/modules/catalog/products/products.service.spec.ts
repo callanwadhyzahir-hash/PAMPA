@@ -62,6 +62,7 @@ describe('ProductsService', () => {
     findAll: jest.fn(),
     findById: jest.fn(),
     findByBarcode: jest.fn(),
+    existsByBarcode: jest.fn(),
     findByCodeOrBarcode: jest.fn(),
     findActiveCategory: jest.fn(),
     create: jest.fn(),
@@ -82,6 +83,53 @@ describe('ProductsService', () => {
     repository.create.mockResolvedValue(product);
     repository.update.mockResolvedValue(product);
     repository.deactivate.mockResolvedValue(product);
+    repository.existsByBarcode.mockResolvedValue(false);
+  });
+
+  describe('generateBarcode', () => {
+    it('generates a barcode starting with the PMP internal namespace', async () => {
+      const result = await service.generateBarcode(context);
+
+      expect(result.barcode).toMatch(/^PMP-[A-Z0-9]{12}$/);
+    });
+
+    it('checks uniqueness scoped to the caller company', async () => {
+      await service.generateBarcode(context);
+
+      expect(repository.existsByBarcode).toHaveBeenCalledWith(
+        context.companyId,
+        expect.stringMatching(/^PMP-/),
+      );
+    });
+
+    it('retries on collision and returns the first free candidate', async () => {
+      repository.existsByBarcode
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      const result = await service.generateBarcode(context);
+
+      expect(repository.existsByBarcode).toHaveBeenCalledTimes(3);
+      expect(result.barcode).toMatch(/^PMP-[A-Z0-9]{12}$/);
+    });
+
+    it('gives up after exhausting attempts instead of returning a colliding code', async () => {
+      repository.existsByBarcode.mockResolvedValue(true);
+
+      await expect(service.generateBarcode(context)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it('never generates two identical candidates across repeated calls', async () => {
+      const results = await Promise.all(
+        Array.from({ length: 20 }, () => service.generateBarcode(context)),
+      );
+
+      const unique = new Set(results.map((result) => result.barcode));
+      expect(unique.size).toBe(results.length);
+    });
   });
 
   it('lists only the authenticated tenant and returns pagination', async () => {

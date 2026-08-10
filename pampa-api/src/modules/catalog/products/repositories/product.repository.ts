@@ -97,6 +97,15 @@ export class ProductRepository {
     });
   }
 
+  existsByBarcode(companyId: string, barcode: string) {
+    return this.prisma.product
+      .findFirst({
+        where: { company_id: companyId, barcode },
+        select: { id: true },
+      })
+      .then((product) => product !== null);
+  }
+
   findByCodeOrBarcode(
     companyId: string,
     code?: string,

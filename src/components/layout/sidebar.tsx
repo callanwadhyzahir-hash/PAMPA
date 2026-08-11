@@ -18,19 +18,26 @@ type NavigationItem = {
 type SidebarProps = {
   items: NavigationItem[];
   className?: string;
+  /** Called after a nav Link is activated — used to close the mobile Sheet. */
+  onNavigate?: () => void;
 };
 
-function Sidebar({ items, className }: SidebarProps) {
+function Sidebar({ items, className, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside
       className={cn(
-        "flex min-h-screen w-64 shrink-0 flex-col bg-sidebar px-3 py-5 text-sidebar-foreground",
+        "flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-5 text-sidebar-foreground",
         className,
       )}
     >
-      <div className="px-3 text-sm font-semibold tracking-[0.12em]">PAMPA</div>
+      <div className="flex items-center gap-2 px-3">
+        <span className="size-1.5 rounded-full bg-primary" aria-hidden />
+        <span className="font-display text-sm font-medium tracking-[0.08em] text-sidebar-foreground">
+          PAMPA
+        </span>
+      </div>
 
       <nav className="mt-8 space-y-1" aria-label="Navegación principal">
         {items.map(({ label, href, icon: Icon, section }, index) => {
@@ -40,24 +47,31 @@ function Sidebar({ items, className }: SidebarProps) {
           return (
             <div key={href}>
               {section && section !== items[index - 1]?.section ? (
-                <p className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500 first:mt-0">
+                <p className="mb-2 mt-5 px-3 text-caption uppercase tracking-[0.14em] text-deep-fern first:mt-0">
                   {section}
                 </p>
               ) : null}
               <Link
                 href={href}
+                onClick={onNavigate}
                 className={cn(
-                  "relative flex h-10 items-center gap-3 rounded-xl px-3 text-sm transition-colors duration-200",
+                  "relative flex h-10 items-center gap-3 rounded-sm px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar",
                   active
-                    ? "text-white"
-                    : "text-gray-400 hover:bg-sidebar-accent hover:text-white",
+                    ? "text-sidebar-foreground"
+                    : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 )}
               >
                 {active && (
                   <motion.span
                     layoutId="sidebar-active"
-                    className="absolute inset-0 -z-10 rounded-xl bg-sidebar-accent"
+                    className="absolute inset-0 -z-10 rounded-sm bg-sidebar-accent"
                     transition={{ duration: 0.2 }}
+                  />
+                )}
+                {active && (
+                  <span
+                    className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
+                    aria-hidden
                   />
                 )}
 

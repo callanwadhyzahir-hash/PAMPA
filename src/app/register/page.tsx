@@ -40,11 +40,11 @@ export default function RegisterPage() {
   return (
     <main className="grid min-h-screen lg:grid-cols-[1fr_minmax(520px,.85fr)]">
       <AuthShowcase />
-      <section className="flex items-center justify-center bg-white px-5 py-10 sm:px-10">
+      <section className="flex items-center justify-center bg-background px-5 py-10 text-foreground sm:px-10">
         <div className="w-full max-w-md">
-          <h2 className="text-3xl font-semibold tracking-[-0.04em]">Crear cuenta</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Configurá tu empresa y empezá a trabajar con PAMPA.</p>
-          <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Alta inmediata · sin datos de demostración</div>
+          <h2 className="text-heading-sm font-medium tracking-[-0.02em]">Crear cuenta</h2>
+          <p className="mt-2 text-body-sm text-muted-foreground">Configurá tu empresa y empezá a trabajar con PAMPA.</p>
+          <div className="mt-6 rounded-lg border border-success/20 bg-success-bg px-4 py-3 text-body-sm text-success">Alta inmediata · sin datos de demostración</div>
           <form onSubmit={submit} className="mt-6 space-y-4">
             <div className="grid grid-cols-2 gap-3"><Field name="firstName" label="Nombre" placeholder="Juan" /><Field name="lastName" label="Apellido" placeholder="Pérez" /></div>
             <Field name="companyName" label="Nombre de tu negocio" placeholder="Ej. Distribuidora Norte" />
@@ -56,7 +56,7 @@ export default function RegisterPage() {
               <p className="mt-1.5 text-xs text-muted-foreground">12 caracteres, mayúscula, minúscula y número.</p>
             </div>
             <label className="flex items-start gap-2 text-xs leading-5 text-muted-foreground"><input type="checkbox" className="mt-1 size-4" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Acepto los términos y la <Link className="text-primary hover:underline" href="/privacidad">política de privacidad</Link>.</span></label>
-            {error ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+            {error ? <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive-bg p-3 text-body-sm text-destructive">{error}</div> : null}
             <button type="submit" className={buttonVariants({ size: "lg", className: "h-11 w-full" })} disabled={submitting}>{submitting && <LoaderCircle className="size-4 animate-spin" />}{submitting ? "Creando tu espacio" : "Crear cuenta"}</button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">¿Ya tenés cuenta? <Link className="font-medium text-foreground hover:underline" href="/login">Iniciar sesión</Link></p>

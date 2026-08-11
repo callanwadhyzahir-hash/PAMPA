@@ -32,15 +32,18 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#f8fafc] px-5 text-[#111827]">
-      <section className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
-        <p className="text-sm font-semibold tracking-[-0.05em]">PAMPA.</p>
-        <h1 className="mt-8 text-2xl font-semibold">Recuperá tu acceso</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
+    <main className="grid min-h-screen place-items-center bg-background px-5 text-foreground">
+      <section className="w-full max-w-md rounded-lg border border-border bg-surface p-8">
+        <Link href="/" className="inline-flex items-center gap-2">
+          <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+          <span className="font-display text-body-sm font-medium tracking-[-0.03em]">PAMPA</span>
+        </Link>
+        <h1 className="mt-8 text-heading-sm font-medium tracking-[-0.02em]">Recuperá tu acceso</h1>
+        <p className="mt-2 text-body-sm leading-6 text-muted-foreground">
           Te enviaremos un enlace seguro si existe una cuenta activa.
         </p>
         <form className="mt-7 space-y-4" onSubmit={submit}>
-          <label className="block text-sm font-medium" htmlFor="email">
+          <label className="block text-body-sm font-medium" htmlFor="email">
             Correo electrónico
           </label>
           <Input
@@ -51,13 +54,13 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
-          {message && <p className="text-sm text-emerald-700">{message}</p>}
-          {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+          {message && <p className="text-body-sm text-success">{message}</p>}
+          {error && <p role="alert" className="text-body-sm text-destructive">{error}</p>}
           <Button className="w-full" disabled={submitting}>
             {submitting ? "Procesando…" : "Enviar instrucciones"}
           </Button>
         </form>
-        <Link href="/login" className="mt-6 block text-center text-sm text-blue-600">
+        <Link href="/login" className="mt-6 block text-center text-body-sm text-primary hover:underline">
           Volver al inicio de sesión
         </Link>
       </section>

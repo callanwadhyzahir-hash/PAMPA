@@ -9,7 +9,6 @@ import {
   ShoppingCart,
   Users,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 
 import { SectionTitle } from "@/components/dashboard/section-title";
@@ -78,12 +77,14 @@ export default function DashboardPage() {
     <PageContainer className="space-y-7">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <SectionTitle
-          title="Dashboard"
+          size="page"
+          eyebrow="PAMPA / Operación"
+          title="Centro de comando"
           description="Resumen operativo de ventas, cobros, clientes y stock."
         />
         <div className="flex flex-wrap gap-2">
           <select
-            className="h-10 rounded-md border bg-background px-3 text-sm"
+            className="h-10 rounded-sm border border-border bg-card px-3 text-sm text-foreground"
             value={range}
             onChange={(event) => setRange(event.target.value)}
             aria-label="Período"
@@ -93,7 +94,7 @@ export default function DashboardPage() {
             <option value="month">Este mes</option>
           </select>
           <select
-            className="h-10 rounded-md border bg-background px-3 text-sm"
+            className="h-10 rounded-sm border border-border bg-card px-3 text-sm text-foreground"
             value={branchId}
             onChange={(event) => setBranchId(event.target.value)}
             aria-label="Sucursal"
@@ -118,69 +119,87 @@ export default function DashboardPage() {
 
       {metrics && !loading ? (
         <>
-          <section className="overflow-hidden rounded-2xl border bg-[#111827] text-white">
-            <div className="grid gap-6 p-6 sm:p-8 xl:grid-cols-[1fr_auto] xl:items-center">
+          <section className="rounded-sm border border-border bg-card">
+            <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/15 px-3 py-1 text-xs font-medium text-blue-200"><Sparkles className="size-3.5" /> Centro de comando</span>
-                <h2 className="mt-4 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">¿Qué querés hacer hoy?</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Empezá por una tarea frecuente. Los indicadores de abajo se actualizan con cada operación confirmada.</p>
+                <SectionTitle eyebrow="Herramientas" title="Acciones rápidas" />
+                <p className="mt-1 text-body-sm text-muted-foreground">
+                  Empezá por una tarea frecuente. Los indicadores de abajo se actualizan con cada operación confirmada.
+                </p>
               </div>
-              <Button render={<Link href="/dashboard/sales/new" />} size="lg" className="bg-blue-500 hover:bg-blue-600">Registrar venta <ArrowRight className="size-4" /></Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="default" render={<Link href="/dashboard/products" />}>
+                  Nuevo producto
+                </Button>
+                <Button variant="default" render={<Link href="/dashboard/clients" />}>
+                  Nuevo cliente
+                </Button>
+                <Button variant="outline" render={<Link href="/dashboard/stock" />}>
+                  Revisar inventario
+                  {metrics.lowStock > 0 ? (
+                    <span className="text-warning">({metrics.lowStock})</span>
+                  ) : null}
+                </Button>
+                <Button variant="lime" render={<Link href="/dashboard/sales/new" />}>
+                  Registrar venta <ArrowRight className="size-4" />
+                </Button>
+              </div>
             </div>
-            <div className="grid border-t border-white/10 sm:grid-cols-3">
-              <QuickAction href="/dashboard/products" title="Crear producto" detail="Precio, costo y stock" />
-              <QuickAction href="/dashboard/clients" title="Agregar cliente" detail="Datos y cuenta corriente" />
-              <QuickAction href="/dashboard/stock" title="Revisar inventario" detail={`${metrics.lowStock} alertas activas`} />
+          </section>
+
+          <section className="space-y-4">
+            <SectionTitle eyebrow="Indicadores" title="Estado operativo del período" />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Ventas de hoy"
+                value={currency(metrics.salesToday)}
+                detail={`${metrics.salesCount} ventas en el período`}
+                icon={<ShoppingCart className="size-5" />}
+              />
+              <StatCard
+                label="Ventas del mes"
+                value={currency(metrics.salesMonth)}
+                detail={`Período: ${currency(metrics.salesPeriod)}`}
+                icon={<CircleDollarSign className="size-5" />}
+              />
+              <StatCard
+                label="Cobrado"
+                value={currency(metrics.collected)}
+                detail={`Pendiente: ${currency(metrics.pending)}`}
+                icon={<Banknote className="size-5" />}
+              />
+              <StatCard
+                label="Clientes activos"
+                value={metrics.activeClients.toString()}
+                detail={`${metrics.activeBranches} sucursales activas`}
+                icon={<Users className="size-5" />}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <StatCard
+                label="Stock bajo"
+                value={metrics.lowStock.toString()}
+                detail="Productos en mínimo o por debajo"
+                icon={<Boxes className="size-5" />}
+                tone={metrics.lowStock > 0 ? "warning" : "neutral"}
+              />
+              <StatCard
+                label="Sin stock"
+                value={metrics.outOfStock.toString()}
+                detail="Existencias en cero"
+                icon={<Boxes className="size-5" />}
+                tone={metrics.outOfStock > 0 ? "destructive" : "neutral"}
+              />
             </div>
           </section>
 
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Ventas de hoy"
-              value={currency(metrics.salesToday)}
-              detail={`${metrics.salesCount} ventas en el período`}
-              icon={<ShoppingCart className="size-5" />}
-            />
-            <StatCard
-              label="Ventas del mes"
-              value={currency(metrics.salesMonth)}
-              detail={`Período: ${currency(metrics.salesPeriod)}`}
-              icon={<CircleDollarSign className="size-5" />}
-            />
-            <StatCard
-              label="Cobrado"
-              value={currency(metrics.collected)}
-              detail={`Pendiente: ${currency(metrics.pending)}`}
-              icon={<Banknote className="size-5" />}
-            />
-            <StatCard
-              label="Clientes activos"
-              value={metrics.activeClients.toString()}
-              detail={`${metrics.activeBranches} sucursales activas`}
-              icon={<Users className="size-5" />}
-            />
-          </section>
-
-          <section className="grid gap-4 sm:grid-cols-2">
-            <StatCard
-              label="Stock bajo"
-              value={metrics.lowStock.toString()}
-              detail="Productos en mínimo o por debajo"
-              icon={<Boxes className="size-5" />}
-            />
-            <StatCard
-              label="Sin stock"
-              value={metrics.outOfStock.toString()}
-              detail="Existencias en cero"
-              icon={<Boxes className="size-5" />}
-            />
-          </section>
-
-          <div className="grid gap-6 xl:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Ventas recientes</CardTitle>
-              </CardHeader>
+          <section className="space-y-4">
+            <SectionTitle eyebrow="Actividad" title="Actividad reciente" />
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ventas recientes</CardTitle>
+                </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
@@ -268,15 +287,12 @@ export default function DashboardPage() {
                 </Table>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          </section>
         </>
       ) : null}
     </PageContainer>
   );
-}
-
-function QuickAction({ href, title, detail }: { href: string; title: string; detail: string }) {
-  return <Link href={href} className="flex items-center justify-between border-white/10 px-6 py-4 hover:bg-white/5 sm:border-r last:border-r-0"><span><span className="block text-sm font-medium">{title}</span><span className="mt-1 block text-xs text-slate-400">{detail}</span></span><ArrowRight className="size-4 text-slate-400" /></Link>;
 }
 
 function currency(value: string) {

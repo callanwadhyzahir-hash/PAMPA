@@ -1,15 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
-import { CircleHelp, LoaderCircle, LogOut } from "lucide-react";
-import Link from "next/link";
+import { useEffect, useState, type ReactNode } from "react";
+import { CircleHelp, LoaderCircle, LogOut, Menu } from "lucide-react";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { authService } from "@/services/auth.service";
+import type { AuthUser } from "@/types/auth";
 import type { NavigationItem } from "@/components/layout/sidebar";
 import { ProductTour } from "@/components/onboarding/product-tour";
 
@@ -18,9 +25,33 @@ interface AuthenticatedShellProps {
   navigation: NavigationItem[];
 }
 
+function CompanyBranchContext({ user }: { user: AuthUser }) {
+  return (
+    <div className="hidden items-center gap-4 border-r border-border pr-4 sm:flex">
+      <div className="leading-tight">
+        <p className="text-caption uppercase tracking-wide text-muted-foreground">
+          Empresa
+        </p>
+        <p className="text-body-sm font-medium text-foreground">
+          {user.company.name}
+        </p>
+      </div>
+      <div className="leading-tight">
+        <p className="text-caption uppercase tracking-wide text-muted-foreground">
+          Sucursal
+        </p>
+        <p className="text-body-sm font-medium text-foreground">
+          {user.branchId ? "Asignada" : "Todas"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function AuthenticatedShell({ children, navigation }: AuthenticatedShellProps) {
   const router = useRouter();
   const { user, loading } = useAuthSession();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -56,37 +87,58 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
     <div className="flex min-h-screen bg-background">
       <Sidebar items={allowedNavigation} className="hidden lg:flex" />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={user.company.name}>
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => window.dispatchEvent(new Event("pampa:restart-tour"))} aria-label="Ver tutorial">
-              <CircleHelp className="size-4" aria-hidden />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Cerrar sesión">
-              <LogOut className="size-4" aria-hidden />
-            </Button>
-          </div>
-        </Topbar>
-        <nav
-          className="flex gap-1 overflow-x-auto border-b bg-background p-2 lg:hidden"
-          aria-label="Navegación móvil"
-        >
-          {allowedNavigation.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex h-9 shrink-0 items-center gap-2 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+        <Topbar
+          left={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Abrir navegación"
             >
-              <Icon className="size-4" aria-hidden />
-              {label}
-            </Link>
-          ))}
-        </nav>
+              <Menu className="size-5" aria-hidden />
+            </Button>
+          }
+          right={
+            <>
+              <CompanyBranchContext user={user} />
+              <div className="hidden text-right sm:block">
+                <p className="text-body-sm font-medium text-foreground">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-caption text-muted-foreground">{user.email}</p>
+              </div>
+              <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => window.dispatchEvent(new Event("pampa:restart-tour"))}
+                aria-label="Ver tutorial"
+              >
+                <CircleHelp className="size-4" aria-hidden />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Cerrar sesión">
+                <LogOut className="size-4" aria-hidden />
+              </Button>
+            </>
+          }
+        />
         <div className="flex-1">{children}</div>
       </div>
+
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar p-0 sm:max-w-xs">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navegación</SheetTitle>
+          </SheetHeader>
+          <Sidebar
+            items={allowedNavigation}
+            className="h-full w-full border-r-0"
+            onNavigate={() => setMobileNavOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
       <ProductTour userId={user.id} />
     </div>
   );

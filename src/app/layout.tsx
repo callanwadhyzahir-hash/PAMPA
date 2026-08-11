@@ -1,12 +1,28 @@
 import type { Metadata } from "next";
+import { Inter, Inter_Tight } from "next/font/google";
 
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const interTight = Inter_Tight({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-inter-tight",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pampa-erp.com"),
-  title: "PAMPA — ERP inteligente para empresas argentinas",
+  title: "PAMPA — Gestión comercial para tu negocio",
   description:
-    "PAMPA es un ERP para comercios argentinos, ya en Beta. Empresas, sucursales, clientes, productos, stock, ventas, pagos y reportes en un solo lugar.",
+    "PAMPA centraliza ventas, stock, clientes y pagos en un solo sistema. El sistema desde el que manejás tu negocio.",
   alternates: {
     canonical: "/",
   },
@@ -19,22 +35,28 @@ export const metadata: Metadata = {
     locale: "es_AR",
     url: "/",
     siteName: "PAMPA",
-    title: "PAMPA — ERP inteligente para empresas argentinas",
+    title: "PAMPA — Gestión comercial para tu negocio",
     description:
-      "ERP para comercios argentinos, ya en Beta con acceso limitado. Ventas, stock, clientes, pagos y reportes en un solo lugar.",
+      "Ventas, stock, clientes y pagos en un solo sistema. Escaneá, controlá tu inventario y vendé más rápido con PAMPA.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "PAMPA — ERP inteligente para empresas argentinas",
+    title: "PAMPA — Gestión comercial para tu negocio",
     description:
-      "ERP para comercios argentinos, ya en Beta con acceso limitado. Ventas, stock, clientes, pagos y reportes en un solo lugar.",
+      "Ventas, stock, clientes y pagos en un solo sistema. Escaneá, controlá tu inventario y vendé más rápido con PAMPA.",
   },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className="h-full antialiased">
-      <body className="min-h-full">{children}</body>
+    <html
+      lang="es"
+      className={`h-full antialiased ${inter.variable} ${interTight.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-full">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

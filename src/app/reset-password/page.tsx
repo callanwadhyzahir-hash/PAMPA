@@ -37,13 +37,13 @@ function ResetPasswordForm() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#f8fafc] px-5 text-[#111827]">
-      <section className="w-full max-w-md rounded-2xl border bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold">Nueva contraseña</h1>
+    <main className="grid min-h-screen place-items-center bg-background px-5 text-foreground">
+      <section className="w-full max-w-md rounded-lg border border-border bg-surface p-8">
+        <h1 className="text-heading-sm font-medium tracking-[-0.02em]">Nueva contraseña</h1>
         {done ? (
           <div className="mt-6">
-            <p className="text-sm text-emerald-700">Tu contraseña fue actualizada.</p>
-            <Link href="/login" className="mt-5 inline-block text-sm text-blue-600">
+            <p className="text-body-sm text-success">Tu contraseña fue actualizada.</p>
+            <Link href="/login" className="mt-5 inline-block text-body-sm text-primary hover:underline">
               Iniciar sesión
             </Link>
           </div>
@@ -69,7 +69,7 @@ function ResetPasswordForm() {
               value={confirmed}
               onChange={(event) => setConfirmed(event.target.value)}
             />
-            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+            {error && <p role="alert" className="text-body-sm text-destructive">{error}</p>}
             <Button className="w-full" disabled={submitting}>
               {submitting ? "Actualizando…" : "Actualizar contraseña"}
             </Button>
@@ -82,7 +82,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-[#f8fafc]" />}>
+    <Suspense fallback={<main className="min-h-screen bg-background" />}>
       <ResetPasswordForm />
     </Suspense>
   );

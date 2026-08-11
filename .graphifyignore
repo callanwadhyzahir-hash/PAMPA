@@ -1,0 +1,41 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Builds
+.next/
+dist/
+build/
+coverage/
+out/
+
+# Cachés
+.cache/
+.turbo/
+.nx/
+
+# Git
+.git/
+
+# Variables y secretos
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Archivos temporales
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+
+# Resultados de Graphify
+graphify-out/
+graph.json
+graph.json
+graphify-out/

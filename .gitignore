@@ -43,7 +43,12 @@ yarn-error.log*
 next-env.d.ts
 
 # Local AI/editor metadata
+/.claude/
 /pampa-api/.agents/
 /pampa-api/.claude/
 /pampa-api/.windsurf/
 /pampa-api/skills-lock.json
+
+# Graphify generated output (regenerable via `graphify update .`)
+/graphify-out/
+/pampa-api/graphify-out/

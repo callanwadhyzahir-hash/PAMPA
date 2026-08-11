@@ -13,6 +13,7 @@ const securityContext: SecurityContext = {
   email: 'user-a@example.com',
   roles: ['VIEWER'],
   permissions: ['companies.read'],
+  isPlatformAdmin: false,
 };
 
 describe('CompaniesController', () => {

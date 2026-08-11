@@ -14,6 +14,9 @@ const contextUserSelect = {
   company: {
     select: { id: true, name: true, is_active: true },
   },
+  platform_admin: {
+    select: { id: true },
+  },
   user_role: {
     select: {
       role: {

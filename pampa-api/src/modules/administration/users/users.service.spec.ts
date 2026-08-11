@@ -19,6 +19,7 @@ const context: SecurityContext = {
   email: 'actor@example.com',
   roles: ['OWNER'],
   permissions: [],
+  isPlatformAdmin: false,
 };
 const targetId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const user = {

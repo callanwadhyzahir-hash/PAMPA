@@ -100,7 +100,12 @@ export class RegistrationRepository {
             company_id: company.id,
           },
         });
-        return { userId: user.id, companyId: company.id };
+        return {
+          userId: user.id,
+          companyId: company.id,
+          email: user.email,
+          firstName: user.first_name,
+        };
       });
     } catch (error) {
       if (

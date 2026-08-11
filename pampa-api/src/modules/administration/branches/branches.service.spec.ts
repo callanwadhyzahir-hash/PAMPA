@@ -13,6 +13,7 @@ const context: SecurityContext = {
   email: 'actor@example.com',
   roles: ['OWNER'],
   permissions: [],
+  isPlatformAdmin: false,
 };
 const branch = {
   id: 'branch-a',

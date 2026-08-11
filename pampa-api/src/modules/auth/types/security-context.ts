@@ -7,4 +7,5 @@ export interface SecurityContext {
   email: string;
   roles: string[];
   permissions: string[];
+  isPlatformAdmin: boolean;
 }

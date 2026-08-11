@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { CircleHelp, LoaderCircle, LogOut, Menu } from "lucide-react";
+import { CircleHelp, LoaderCircle, LogOut, Menu, ShieldCheck } from "lucide-react";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -108,6 +109,16 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
                 </p>
                 <p className="text-caption text-muted-foreground">{user.email}</p>
               </div>
+              {user.isPlatformAdmin ? (
+                <Link
+                  href="/admin"
+                  aria-label="Administrar PAMPA"
+                  title="Administrar PAMPA"
+                  className={buttonVariants({ variant: "ghost", size: "icon" })}
+                >
+                  <ShieldCheck className="size-4" aria-hidden />
+                </Link>
+              ) : null}
               <ThemeToggle />
               <Button
                 variant="ghost"

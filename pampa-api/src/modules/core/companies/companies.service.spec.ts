@@ -26,6 +26,7 @@ const contextA: SecurityContext = {
   email: 'user-a@example.com',
   roles: ['VIEWER'],
   permissions: ['companies.read'],
+  isPlatformAdmin: false,
 };
 const contextB: SecurityContext = {
   ...contextA,

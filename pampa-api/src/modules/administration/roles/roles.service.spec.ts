@@ -18,6 +18,7 @@ const context: SecurityContext = {
   email: 'actor@example.com',
   roles: ['ADMINISTRATOR'],
   permissions: [],
+  isPlatformAdmin: false,
 };
 const customRole = {
   id: 'role-a',

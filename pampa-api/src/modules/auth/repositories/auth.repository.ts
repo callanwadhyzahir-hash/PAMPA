@@ -12,6 +12,8 @@ const authenticatedUserSelect = {
   password_hash: true,
   is_active: true,
   token_version: true,
+  email_verified_at: true,
+  platform_admin: { select: { id: true } },
   company: {
     select: {
       id: true,

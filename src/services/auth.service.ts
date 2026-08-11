@@ -1,5 +1,22 @@
-import { apiFetch } from "@/services/api";
+import { ApiError, apiFetch } from "@/services/api";
 import type { ApiEnvelope, AuthUser } from "@/types/auth";
+
+/**
+ * The global backend exception filter only forwards `message` and `details`
+ * from an error response — a top-level `code` field would be dropped. The
+ * login gate encodes EMAIL_NOT_VERIFIED as `details: { code: ... }`, so this
+ * is the only place that should know that shape.
+ */
+export function isEmailNotVerifiedError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  const details = error.details;
+  return (
+    typeof details === "object" &&
+    details !== null &&
+    "code" in details &&
+    (details as { code?: unknown }).code === "EMAIL_NOT_VERIFIED"
+  );
+}
 
 export interface LoginCredentials {
   email: string;
@@ -55,5 +72,25 @@ export const authService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, newPassword }),
     });
+  },
+
+  async verifyEmail(token: string) {
+    await apiFetch<void>("/auth/verify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+  },
+
+  async resendVerification(email: string) {
+    const response = await apiFetch<ApiEnvelope<{ message: string }>>(
+      "/auth/resend-verification",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      },
+    );
+    return response.data;
   },
 };

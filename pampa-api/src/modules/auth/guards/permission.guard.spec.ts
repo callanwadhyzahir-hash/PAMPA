@@ -19,6 +19,7 @@ const securityContext: SecurityContext = {
   email: 'user@example.com',
   roles: ['ADMINISTRATOR'],
   permissions: ['companies.read', 'companies.update'],
+  isPlatformAdmin: false,
 };
 
 function createExecutionContext(user?: SecurityContext): ExecutionContext {

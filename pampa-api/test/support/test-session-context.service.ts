@@ -16,6 +16,7 @@ export class TestSessionContextService {
       email: 'actor@example.com',
       roles: ['OWNER'],
       permissions: input.sessionId === 'none' ? [] : input.sessionId.split('|'),
+      isPlatformAdmin: false,
     });
   }
 }

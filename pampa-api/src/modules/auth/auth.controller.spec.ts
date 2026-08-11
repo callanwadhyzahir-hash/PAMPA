@@ -8,12 +8,14 @@ import { PasswordRecoveryService } from './password/password-recovery.service';
 import { RateLimitService } from './rate-limit/rate-limit.service';
 import { SecurityAuditService } from './audit/security-audit.service';
 import { RegistrationService } from './registration/registration.service';
+import { EmailVerificationService } from './email-verification/email-verification.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
   const authService = { login: jest.fn() };
   const rateLimit = { consume: jest.fn(), clear: jest.fn() };
   const audit = { record: jest.fn() };
+  const emailVerification = { verify: jest.fn(), resend: jest.fn() };
   const configService = {
     get: jest.fn((key: string) =>
       key === 'NODE_ENV' ? 'production' : undefined,
@@ -32,6 +34,7 @@ describe('AuthController', () => {
         { provide: RateLimitService, useValue: rateLimit },
         { provide: SecurityAuditService, useValue: audit },
         { provide: RegistrationService, useValue: {} },
+        { provide: EmailVerificationService, useValue: emailVerification },
       ],
     }).compile();
 

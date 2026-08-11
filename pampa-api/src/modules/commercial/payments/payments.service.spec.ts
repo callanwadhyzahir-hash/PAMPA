@@ -15,6 +15,7 @@ const context: SecurityContext = {
   email: 'owner@example.com',
   roles: ['OWNER'],
   permissions: [],
+  isPlatformAdmin: false,
 };
 
 describe('PaymentsService', () => {

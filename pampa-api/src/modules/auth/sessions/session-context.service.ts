@@ -37,6 +37,7 @@ export class SessionContextService {
           ),
         ),
       ],
+      isPlatformAdmin: session.user.platform_admin !== null,
     };
   }
 }

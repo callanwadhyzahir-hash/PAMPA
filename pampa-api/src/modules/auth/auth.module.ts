@@ -20,6 +20,9 @@ import { PasswordRecoveryService } from './password/password-recovery.service';
 import { PasswordNotifierService } from './password/password-notifier.service';
 import { RegistrationRepository } from './registration/registration.repository';
 import { RegistrationService } from './registration/registration.service';
+import { EmailVerificationRepository } from './email-verification/email-verification.repository';
+import { EmailVerificationService } from './email-verification/email-verification.service';
+import { EmailVerificationNotifierService } from './email-verification/email-verification-notifier.service';
 
 @Module({
   imports: [
@@ -67,6 +70,9 @@ import { RegistrationService } from './registration/registration.service';
     PasswordNotifierService,
     RegistrationRepository,
     RegistrationService,
+    EmailVerificationRepository,
+    EmailVerificationService,
+    EmailVerificationNotifierService,
   ],
   controllers: [AuthController],
 })

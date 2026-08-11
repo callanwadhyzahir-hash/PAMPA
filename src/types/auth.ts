@@ -11,6 +11,7 @@ export interface AuthUser {
   };
   roles: string[];
   permissions: string[];
+  isPlatformAdmin: boolean;
 }
 
 export interface ApiEnvelope<T> {

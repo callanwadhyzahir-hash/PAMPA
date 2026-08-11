@@ -20,6 +20,7 @@ import { SalesModule } from './modules/commercial/sales/sales.module';
 import { PaymentsModule } from './modules/commercial/payments/payments.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { FiscalModule } from './modules/fiscal/fiscal.module';
+import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -47,6 +48,7 @@ import { HealthController } from './health.controller';
     PaymentsModule,
     AnalyticsModule,
     FiscalModule.forRoot(),
+    PlatformAdminModule,
   ],
   controllers: [HealthController],
 })

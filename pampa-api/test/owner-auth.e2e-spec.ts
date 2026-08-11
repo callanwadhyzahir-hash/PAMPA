@@ -21,6 +21,7 @@ import { PasswordRecoveryService } from '../src/modules/auth/password/password-r
 import { RateLimitService } from '../src/modules/auth/rate-limit/rate-limit.service';
 import { SecurityAuditService } from '../src/modules/auth/audit/security-audit.service';
 import { RegistrationService } from '../src/modules/auth/registration/registration.service';
+import { EmailVerificationService } from '../src/modules/auth/email-verification/email-verification.service';
 import { CompaniesController } from '../src/modules/core/companies/companies.controller';
 import { CompaniesService } from '../src/modules/core/companies/companies.service';
 
@@ -58,6 +59,8 @@ describe('OWNER authentication and authorization (e2e)', () => {
       password_hash: passwordHash,
       is_active: true,
       token_version: 0,
+      email_verified_at: new Date(),
+      platform_admin: null,
       company: {
         id: companyId,
         name: 'Tenant fixture',
@@ -147,6 +150,10 @@ describe('OWNER authentication and authorization (e2e)', () => {
         },
         { provide: SecurityAuditService, useValue: { record: jest.fn() } },
         { provide: RegistrationService, useValue: { register: jest.fn() } },
+        {
+          provide: EmailVerificationService,
+          useValue: { verify: jest.fn(), resend: jest.fn() },
+        },
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: PermissionGuard },
       ],

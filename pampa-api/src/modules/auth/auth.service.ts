@@ -39,6 +39,16 @@ export class AuthService {
       );
     }
 
+    if (!storedUser.email_verified_at) {
+      // The global HttpExceptionFilter only forwards `message` and
+      // `details` from the exception response — a top-level `code` field
+      // would silently be dropped before reaching the frontend.
+      throw new UnauthorizedException({
+        message: 'Necesitás verificar tu correo antes de iniciar sesión.',
+        details: { code: 'EMAIL_NOT_VERIFIED' },
+      });
+    }
+
     const user = this.toAuthenticatedUser(storedUser);
     const tokens = await this.sessions.create({
       userId: user.id,
@@ -85,6 +95,7 @@ export class AuthService {
           ),
         ),
       ],
+      isPlatformAdmin: user.platform_admin !== null,
     };
   }
 }

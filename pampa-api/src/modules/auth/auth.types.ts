@@ -13,6 +13,7 @@ export interface AuthenticatedUser {
   };
   roles: string[];
   permissions: string[];
+  isPlatformAdmin: boolean;
 }
 
 export interface AccessTokenPayload {

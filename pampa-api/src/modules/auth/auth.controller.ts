@@ -43,6 +43,11 @@ import { RateLimitService } from './rate-limit/rate-limit.service';
 import { SecurityAuditService } from './audit/security-audit.service';
 import { RegisterDto } from './dto/register.dto';
 import { RegistrationService } from './registration/registration.service';
+import {
+  ResendVerificationDto,
+  VerifyEmailDto,
+} from './dto/email-verification.dto';
+import { EmailVerificationService } from './email-verification/email-verification.service';
 
 const ACCESS_COOKIE = 'pampa_access';
 const REFRESH_COOKIE = 'pampa_refresh';
@@ -68,6 +73,7 @@ export class AuthController {
     private readonly rateLimit: RateLimitService,
     private readonly audit: SecurityAuditService,
     private readonly registration: RegistrationService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   @Post('register')
@@ -231,6 +237,37 @@ export class AuthController {
     @Param('id', ParseUUIDPipe) sessionId: string,
   ) {
     return this.sessions.revoke(userId, sessionId);
+  }
+
+  @Post('verify-email')
+  @Public()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Confirmar el correo con el token recibido' })
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Ip() ip: string) {
+    await this.rateLimit.consume({
+      action: 'verify-email',
+      key: ip,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    await this.emailVerification.verify(dto.token);
+  }
+
+  @Post('resend-verification')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reenviar el correo de verificación' })
+  async resendVerification(
+    @Body() dto: ResendVerificationDto,
+    @Ip() ip: string,
+  ) {
+    await this.rateLimit.consume({
+      action: 'resend-verification',
+      key: `${ip}:${dto.email}`,
+      limit: 3,
+      windowMs: 30 * 60 * 1000,
+    });
+    return this.emailVerification.resend(dto.email);
   }
 
   @Post('forgot-password')

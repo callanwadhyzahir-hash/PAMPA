@@ -23,7 +23,8 @@
     "seed:demo": "ts-node prisma/seed-demo.ts",
     "rbac:bootstrap": "ts-node src/cli/rbac-bootstrap.ts",
     "rbac:assign-owner": "ts-node src/cli/rbac-assign-owner.ts",
-    "integrity:audit": "ts-node src/cli/tenant-integrity-audit.ts"
+    "integrity:audit": "ts-node src/cli/tenant-integrity-audit.ts",
+    "platform-admin:bootstrap": "ts-node src/cli/bootstrap-platform-admin.ts"
   },
   "overrides": {
     "js-yaml": "5.2.2"

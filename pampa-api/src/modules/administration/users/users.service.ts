@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 import type { SecurityContext } from '../../auth/types/security-context';
+import { EmailVerificationService } from '../../auth/email-verification/email-verification.service';
 import { OwnerProtectionService } from '../../auth/rbac/owner-protection.service';
 import { UserRoleAssignmentService } from '../../auth/rbac/user-role-assignment.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -15,12 +16,15 @@ import { ReplaceUserRolesDto } from './dto/replace-user-roles.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './repositories/user.repository';
 
+type CreatedUser = Awaited<ReturnType<UserRepository['create']>>;
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly repository: UserRepository,
     private readonly ownerProtection: OwnerProtectionService,
     private readonly roleAssignment: UserRoleAssignmentService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   findAll(context: SecurityContext) {
@@ -40,8 +44,9 @@ export class UsersService {
     await this.assertBranch(context.companyId, input.branchId);
     const passwordHash = await bcrypt.hash(input.temporaryPassword, 12);
 
+    let user: CreatedUser;
     try {
-      return await this.repository.create(context.companyId, {
+      user = await this.repository.create(context.companyId, {
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
         email: input.email,
@@ -58,6 +63,19 @@ export class UsersService {
       }
       throw error;
     }
+
+    // Runs after the user is already persisted, same as RegistrationService:
+    // a transient Resend failure must not undo the account that was just
+    // created. sendVerification() already swallows delivery errors and
+    // records them via audit instead of throwing.
+    await this.emailVerification.sendVerification({
+      userId: user.id,
+      companyId: context.companyId,
+      email: user.email,
+      firstName: user.first_name,
+    });
+
+    return user;
   }
 
   async update(context: SecurityContext, id: string, input: UpdateUserDto) {

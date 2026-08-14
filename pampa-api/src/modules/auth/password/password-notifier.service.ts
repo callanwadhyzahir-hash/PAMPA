@@ -35,7 +35,10 @@ export class PasswordNotifierService {
       }),
     });
     if (!response.ok) {
-      throw new Error('Password reset email delivery failed.');
+      const body = await response.text().catch(() => '');
+      throw new Error(
+        `Password reset email delivery failed: ${response.status} ${body}`,
+      );
     }
   }
 

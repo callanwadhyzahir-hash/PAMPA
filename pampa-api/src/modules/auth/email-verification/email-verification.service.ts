@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 
 import { SecurityAuditService } from '../audit/security-audit.service';
 import {
@@ -17,6 +17,8 @@ const NEUTRAL_RESEND_RESPONSE = {
 
 @Injectable()
 export class EmailVerificationService {
+  private readonly logger = new Logger(EmailVerificationService.name);
+
   constructor(
     private readonly repository: EmailVerificationRepository,
     private readonly notifier: EmailVerificationNotifierService,
@@ -47,7 +49,8 @@ export class EmailVerificationService {
         eventType: 'EMAIL_VERIFICATION_SENT',
         result: 'SUCCESS',
       });
-    } catch {
+    } catch (error) {
+      this.logger.error('Email verification delivery failed.', error);
       await this.audit.record({
         companyId: input.companyId,
         targetUserId: input.userId,

@@ -75,5 +75,8 @@ import { EmailVerificationNotifierService } from './email-verification/email-ver
     EmailVerificationNotifierService,
   ],
   controllers: [AuthController],
+  // Exported so UsersModule can trigger verification for admin-created users
+  // through the same service RegistrationService already uses.
+  exports: [EmailVerificationService],
 })
 export class AuthModule {}

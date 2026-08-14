@@ -60,6 +60,7 @@ export default function UsersPage() {
   const [branches, setBranches] = useState<BranchDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [createOpen, setCreateOpen] = useState(false);
@@ -121,6 +122,8 @@ export default function UsersPage() {
     event.preventDefault();
     setSaving(true);
     setError(null);
+    setNotice(null);
+    const createdEmail = form.email;
     try {
       await usersService.create({
         ...form,
@@ -129,6 +132,10 @@ export default function UsersPage() {
       });
       setCreateOpen(false);
       setForm(emptyUser);
+      // The backend always sends the verification email as part of user
+      // creation and never fails the request for a delivery error, so this
+      // confirmation holds even if Resend itself had trouble.
+      setNotice(`Usuario creado. Enviamos un correo de verificación a ${createdEmail}.`);
       await load();
     } catch (reason) {
       setError(message(reason));
@@ -187,7 +194,12 @@ export default function UsersPage() {
           </p>
         </div>
         {canCreate ? (
-          <Button onClick={() => setCreateOpen(true)}>
+          <Button
+            onClick={() => {
+              setNotice(null);
+              setCreateOpen(true);
+            }}
+          >
             <Plus className="size-4" />
             Nuevo usuario
           </Button>
@@ -197,6 +209,12 @@ export default function UsersPage() {
       {error ? (
         <div className="rounded-xl border border-destructive/30 bg-red-50 p-3 text-sm text-destructive">
           {error}
+        </div>
+      ) : null}
+
+      {notice ? (
+        <div className="rounded-xl border border-success/30 bg-success-bg p-3 text-sm text-success">
+          {notice}
         </div>
       ) : null}
 

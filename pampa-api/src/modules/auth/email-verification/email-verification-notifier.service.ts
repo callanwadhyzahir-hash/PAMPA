@@ -39,7 +39,10 @@ export class EmailVerificationNotifierService {
       }),
     });
     if (!response.ok) {
-      throw new Error('Email verification delivery failed.');
+      const body = await response.text().catch(() => '');
+      throw new Error(
+        `Email verification delivery failed: ${response.status} ${body}`,
+      );
     }
   }
 

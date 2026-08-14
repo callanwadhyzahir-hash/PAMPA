@@ -4,6 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { EmailVerificationNotifierService } from '../../auth/email-verification/email-verification-notifier.service';
+import { EmailVerificationRepository } from '../../auth/email-verification/email-verification.repository';
+import { EmailVerificationService } from '../../auth/email-verification/email-verification.service';
+import type { SecurityAuditService } from '../../auth/audit/security-audit.service';
 import type { OwnerProtectionService } from '../../auth/rbac/owner-protection.service';
 import type { UserRoleAssignmentService } from '../../auth/rbac/user-role-assignment.service';
 import type { SecurityContext } from '../../auth/types/security-context';
@@ -52,10 +56,14 @@ describe('UsersService', () => {
   const roleAssignment = {
     replaceRoles: jest.fn(),
   };
+  const emailVerification = {
+    sendVerification: jest.fn(),
+  };
   const service = new UsersService(
     repository as unknown as UserRepository,
     ownerProtection as unknown as OwnerProtectionService,
     roleAssignment as unknown as UserRoleAssignmentService,
+    emailVerification as unknown as EmailVerificationService,
   );
 
   beforeEach(() => {
@@ -117,6 +125,72 @@ describe('UsersService', () => {
     expect(persisted?.passwordHash).not.toContain('Strong!Password1');
   });
 
+  it('leaves the new user unverified and requests email verification, same as self-registration', async () => {
+    let persisted: { email_verified_at?: unknown } | undefined;
+    repository.create.mockImplementation(
+      (_companyId: string, input: unknown) => {
+        persisted = input as { email_verified_at?: unknown };
+        return Promise.resolve(user);
+      },
+    );
+
+    await service.create(context, {
+      firstName: 'Target',
+      lastName: 'User',
+      email: 'target@example.com',
+      temporaryPassword: 'Strong!Password1',
+    });
+
+    // UserRepository.create() never sets email_verified_at, so it keeps the
+    // Prisma default (null) — the same gate AuthService.login() checks.
+    expect(persisted).not.toHaveProperty('email_verified_at');
+    expect(emailVerification.sendVerification).toHaveBeenCalledWith({
+      userId: user.id,
+      companyId: context.companyId,
+      email: user.email,
+      firstName: user.first_name,
+    });
+  });
+
+  it('does not undo the already-created user when Resend fails to deliver the verification email', async () => {
+    const notifier = { sendVerification: jest.fn() };
+    const audit = { record: jest.fn() };
+    // Uses the real EmailVerificationService (not a mock), same as
+    // registration.service.spec.ts — proves a Resend rejection is caught
+    // inside sendVerification() and never bubbles up to UsersService.create().
+    const realEmailVerification = new EmailVerificationService(
+      {
+        createToken: jest.fn().mockResolvedValue({ id: 'token-id' }),
+      } as unknown as EmailVerificationRepository,
+      notifier as unknown as EmailVerificationNotifierService,
+      audit as unknown as SecurityAuditService,
+    );
+    notifier.sendVerification.mockRejectedValue(
+      new Error('Resend unavailable'),
+    );
+    const serviceWithRealNotifier = new UsersService(
+      repository as unknown as UserRepository,
+      ownerProtection as unknown as OwnerProtectionService,
+      roleAssignment as unknown as UserRoleAssignmentService,
+      realEmailVerification,
+    );
+
+    const result = await serviceWithRealNotifier.create(context, {
+      firstName: 'Target',
+      lastName: 'User',
+      email: 'target@example.com',
+      temporaryPassword: 'Strong!Password1',
+    });
+
+    expect(result).toEqual(user);
+    expect(repository.create).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'EMAIL_VERIFICATION_DELIVERY_FAILED',
+      }),
+    );
+  });
+
   it('rejects a duplicated email', async () => {
     repository.findByEmail.mockResolvedValue({ id: 'existing' });
 
@@ -129,6 +203,7 @@ describe('UsersService', () => {
       }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(repository.create).not.toHaveBeenCalled();
+    expect(emailVerification.sendVerification).not.toHaveBeenCalled();
   });
 
   it('rejects a branch outside the tenant', async () => {

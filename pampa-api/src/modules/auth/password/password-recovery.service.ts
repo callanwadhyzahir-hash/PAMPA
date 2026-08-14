@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 import { SecurityAuditService } from '../audit/security-audit.service';
@@ -11,6 +11,8 @@ import { PasswordRecoveryRepository } from './password-recovery.repository';
 
 @Injectable()
 export class PasswordRecoveryService {
+  private readonly logger = new Logger(PasswordRecoveryService.name);
+
   constructor(
     private readonly repository: PasswordRecoveryRepository,
     private readonly notifier: PasswordNotifierService,
@@ -32,7 +34,8 @@ export class PasswordRecoveryService {
           firstName: user.first_name,
           token,
         });
-      } catch {
+      } catch (error) {
+        this.logger.error('Password reset delivery failed.', error);
         await this.audit.record({
           companyId: user.company_id,
           targetUserId: user.id,

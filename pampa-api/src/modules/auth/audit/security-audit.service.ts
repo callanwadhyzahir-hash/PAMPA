@@ -30,4 +30,15 @@ export class SecurityAuditService {
   findForCompany(companyId: string) {
     return this.repository.findForCompany(companyId);
   }
+
+  listGlobal(filters: {
+    page: number;
+    limit: number;
+    eventTypes?: string[];
+    companyId?: string;
+    result?: 'SUCCESS' | 'FAILURE' | 'BLOCKED';
+    userId?: string;
+  }) {
+    return this.repository.listGlobal(filters);
+  }
 }

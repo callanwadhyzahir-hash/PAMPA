@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
-import { Building2, LayoutGrid, LoaderCircle, LogOut, Menu, ShieldAlert, Users } from "lucide-react";
+import { Activity, Building2, LayoutGrid, LoaderCircle, LogOut, Menu, Server, ShieldAlert, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -24,6 +24,9 @@ const adminNavigation: AdminNavItem[] = [
   { label: "Resumen", href: "/admin", icon: LayoutGrid },
   { label: "Empresas", href: "/admin/companies", icon: Building2 },
   { label: "Usuarios", href: "/admin/users", icon: Users },
+  { label: "Actividad", href: "/admin/activity", icon: Activity },
+  { label: "Seguridad", href: "/admin/security", icon: ShieldAlert },
+  { label: "Sistema", href: "/admin/system", icon: Server },
 ];
 
 function AdminSidebar({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {

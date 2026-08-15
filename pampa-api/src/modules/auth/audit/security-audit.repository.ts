@@ -47,4 +47,58 @@ export class SecurityAuditRepository {
       take: Math.min(take, 200),
     });
   }
+
+  async listGlobal(filters: {
+    page: number;
+    limit: number;
+    eventTypes?: string[];
+    companyId?: string;
+    result?: 'SUCCESS' | 'FAILURE' | 'BLOCKED';
+    userId?: string;
+  }) {
+    const where: Prisma.security_eventWhereInput = {
+      ...(filters.eventTypes?.length
+        ? { event_type: { in: filters.eventTypes } }
+        : {}),
+      ...(filters.companyId ? { company_id: filters.companyId } : {}),
+      ...(filters.result ? { result: filters.result } : {}),
+      ...(filters.userId
+        ? {
+            OR: [
+              { actor_user_id: filters.userId },
+              { target_user_id: filters.userId },
+            ],
+          }
+        : {}),
+    };
+
+    const userSelect = {
+      id: true,
+      first_name: true,
+      last_name: true,
+      email: true,
+    } as const;
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.security_event.findMany({
+        where,
+        select: {
+          id: true,
+          event_type: true,
+          result: true,
+          metadata: true,
+          created_at: true,
+          company: { select: { id: true, name: true } },
+          actor_user: { select: userSelect },
+          target_user: { select: userSelect },
+        },
+        orderBy: { created_at: 'desc' },
+        skip: (filters.page - 1) * filters.limit,
+        take: filters.limit,
+      }),
+      this.prisma.security_event.count({ where }),
+    ]);
+
+    return { items, total };
+  }
 }

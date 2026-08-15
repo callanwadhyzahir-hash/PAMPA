@@ -3,13 +3,25 @@
 import { useEffect, useState } from "react";
 import { Boxes, Building2, ContactRound, Gauge, ShoppingCart, Users } from "lucide-react";
 
+import { DailyBarChart } from "@/components/platform-admin/daily-bar-chart";
 import { ErrorState, LoadingState } from "@/components/pampa-ui";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/services/api";
 import {
   platformAdminService,
+  type PlatformGrowthSeries,
   type PlatformOverview,
+  type PlatformSecuritySummary,
 } from "@/services/platform-admin/platform-admin.service";
+
+type RangeOption = 7 | 30 | 90;
+
+const rangeOptions: { value: RangeOption; label: string }[] = [
+  { value: 7, label: "7 días" },
+  { value: 30, label: "30 días" },
+  { value: 90, label: "90 días" },
+];
 
 function errorMessage(reason: unknown) {
   return reason instanceof ApiError
@@ -21,14 +33,23 @@ function errorMessage(reason: unknown) {
 
 export default function AdminOverviewPage() {
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
+  const [growth, setGrowth] = useState<PlatformGrowthSeries | null>(null);
+  const [security, setSecurity] = useState<PlatformSecuritySummary | null>(null);
+  const [range, setRange] = useState<RangeOption>(30);
   const [loading, setLoading] = useState(true);
+  const [growthLoading, setGrowthLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      setOverview(await platformAdminService.overview());
+      const [overviewResult, securityResult] = await Promise.all([
+        platformAdminService.overview(),
+        platformAdminService.securitySummary(),
+      ]);
+      setOverview(overviewResult);
+      setSecurity(securityResult);
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -36,10 +57,26 @@ export default function AdminOverviewPage() {
     }
   }
 
+  async function loadGrowth(nextRange: RangeOption) {
+    setGrowthLoading(true);
+    try {
+      setGrowth(await platformAdminService.growth(nextRange));
+    } catch {
+      setGrowth(null);
+    } finally {
+      setGrowthLoading(false);
+    }
+  }
+
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadGrowth(range), 0);
+    return () => window.clearTimeout(timer);
+  }, [range]);
 
   if (loading) return <LoadingState label="Cargando resumen de la plataforma" />;
   if (error || !overview) {
@@ -99,7 +136,116 @@ export default function AdminOverviewPage() {
           <SecondaryMetric icon={Building2} label="Sucursales" value={overview.totalBranches} />
         </div>
       </div>
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-caption font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Crecimiento
+        </h2>
+        <div className="flex gap-1.5" role="group" aria-label="Rango de crecimiento">
+          {rangeOptions.map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              size="sm"
+              variant={range === option.value ? "secondary" : "ghost"}
+              aria-pressed={range === option.value}
+              onClick={() => setRange(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {growthLoading || !growth ? (
+        <Card>
+          <CardContent className="py-8 text-center text-body-sm text-muted-foreground">
+            Cargando series de crecimiento…
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <GrowthCard
+            title="Nuevas empresas"
+            total={growth.series.reduce((sum, point) => sum + point.newCompanies, 0)}
+            points={growth.series.map((point) => ({ date: point.date, value: point.newCompanies }))}
+          />
+          <GrowthCard
+            title="Nuevos usuarios"
+            total={growth.series.reduce((sum, point) => sum + point.newUsers, 0)}
+            points={growth.series.map((point) => ({ date: point.date, value: point.newUsers }))}
+          />
+          <GrowthCard
+            title="Logins exitosos"
+            total={growth.series.reduce((sum, point) => sum + point.logins, 0)}
+            points={growth.series.map((point) => ({ date: point.date, value: point.logins }))}
+          />
+        </div>
+      )}
+
+      {security ? (
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>Estado de usuarios</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VerificationBar
+              verified={security.users.verified}
+              pending={security.users.pendingVerification}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
     </main>
+  );
+}
+
+function GrowthCard({
+  title,
+  total,
+  points,
+}: {
+  title: string;
+  total: number;
+  points: { date: string; value: number }[];
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle className="text-body-sm">{title}</CardTitle>
+        <p className="text-2xl font-medium tracking-[-0.02em]">{total.toLocaleString("es-AR")}</p>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <DailyBarChart points={points} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function VerificationBar({ verified, pending }: { verified: number; pending: number }) {
+  const total = Math.max(verified + pending, 1);
+  const verifiedPct = (verified / total) * 100;
+  const pendingPct = 100 - verifiedPct;
+
+  return (
+    <div className="space-y-3 py-1">
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+        {verified > 0 ? <div className="h-full bg-success" style={{ width: `${verifiedPct}%` }} /> : null}
+        {pending > 0 ? <div className="h-full bg-warning" style={{ width: `${pendingPct}%` }} /> : null}
+      </div>
+      <div className="flex flex-wrap gap-x-6 gap-y-2 text-body-sm">
+        <span className="flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-success" aria-hidden />
+          Verificados
+          <span className="font-medium text-foreground">{verified.toLocaleString("es-AR")}</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-warning" aria-hidden />
+          Pendientes
+          <span className="font-medium text-foreground">{pending.toLocaleString("es-AR")}</span>
+        </span>
+      </div>
+    </div>
   );
 }
 

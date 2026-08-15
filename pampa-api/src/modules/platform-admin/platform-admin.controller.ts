@@ -18,7 +18,9 @@ import {
 import { CurrentSecurityContext } from '../auth/decorators/current-security-context.decorator';
 import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
 import type { SecurityContext } from '../auth/types/security-context';
+import { PlatformActivityQueryDto } from './dto/activity-query.dto';
 import { PlatformCompanyQueryDto } from './dto/company-query.dto';
+import { PlatformGrowthQueryDto } from './dto/growth-query.dto';
 import { PlatformUserQueryDto } from './dto/user-query.dto';
 import { UpdateCompanyStatusDto } from './dto/update-company-status.dto';
 import { PlatformAdminService } from './platform-admin.service';
@@ -35,6 +37,21 @@ export class PlatformAdminController {
   @Get('overview')
   overview() {
     return this.service.overview();
+  }
+
+  @Get('overview/growth')
+  growth(@Query() query: PlatformGrowthQueryDto) {
+    return this.service.growth(query);
+  }
+
+  @Get('security')
+  security() {
+    return this.service.securitySummary();
+  }
+
+  @Get('system')
+  system() {
+    return this.service.systemStatus();
   }
 
   @Get('companies')
@@ -59,5 +76,15 @@ export class PlatformAdminController {
   @Get('users')
   users(@Query() query: PlatformUserQueryDto) {
     return this.service.listUsers(query);
+  }
+
+  @Get('users/:id')
+  user(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getUser(id);
+  }
+
+  @Get('activity')
+  activity(@Query() query: PlatformActivityQueryDto) {
+    return this.service.listActivity(query);
   }
 }

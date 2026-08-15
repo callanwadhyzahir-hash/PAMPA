@@ -120,6 +120,8 @@ model company {
   user             user[]
   warehouse        warehouse[]
   security_event   security_event[]
+
+  @@index([created_at], map: "idx_company_created")
 }
 
 model company_type {
@@ -503,6 +505,7 @@ model user {
   @@unique([id, company_id], map: "uq_user_id_company")
   @@index([branch_id], map: "idx_user_branch")
   @@index([company_id], map: "idx_user_company")
+  @@index([created_at], map: "idx_user_created")
 }
 
 model session {
@@ -575,7 +578,9 @@ model security_event {
 
   @@index([company_id, created_at], map: "idx_security_event_company_created")
   @@index([actor_user_id, created_at], map: "idx_security_event_actor_created")
+  @@index([target_user_id, created_at], map: "idx_security_event_target_created")
   @@index([event_type, created_at], map: "idx_security_event_type_created")
+  @@index([created_at], map: "idx_security_event_created")
 }
 
 model rate_limit_bucket {

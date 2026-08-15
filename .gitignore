@@ -52,3 +52,6 @@ next-env.d.ts
 # Graphify generated output (regenerable via `graphify update .`)
 /graphify-out/
 /pampa-api/graphify-out/
+
+.vercel
+.env*

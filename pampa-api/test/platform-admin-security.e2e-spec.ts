@@ -21,6 +21,7 @@ const secret = 'platform-admin-security-e2e-secret-at-least-32-chars';
 const companyAId = '11111111-1111-4111-8111-111111111111';
 const companyBId = '22222222-2222-4222-8222-222222222222';
 const productAId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const userAId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 // The platform admin's own user still belongs to Company A, exactly like a
 // regular OWNER — being PLATFORM_ADMIN must never change tenant scoping on
@@ -51,6 +52,24 @@ describe('PlatformAdmin authorization and tenant isolation (e2e)', () => {
 
   const platformAdminService = {
     overview: jest.fn(() => Promise.resolve({ totalCompanies: 2 })),
+    growth: jest.fn(() => Promise.resolve({ days: 30, series: [] })),
+    securitySummary: jest.fn(() =>
+      Promise.resolve({
+        users: {
+          total: 2,
+          pendingVerification: 0,
+          verified: 2,
+          deactivated: 0,
+        },
+        emails: {
+          sentLast7d: 0,
+          verifiedLast7d: 0,
+          deliveryFailuresLast7d: 0,
+          deliveryFailuresLast30d: 0,
+        },
+        auth: { failedLoginsLast24h: 0, failedLoginsLast7d: 0 },
+      }),
+    ),
     listCompanies: jest.fn(() =>
       Promise.resolve({
         items: [
@@ -66,6 +85,39 @@ describe('PlatformAdmin authorization and tenant isolation (e2e)', () => {
       Promise.resolve({
         items: [],
         pagination: { page: 1, limit: 20, total: 0, pages: 0 },
+      }),
+    ),
+    listActivity: jest.fn(() =>
+      Promise.resolve({
+        items: [],
+        pagination: { page: 1, limit: 30, total: 0, pages: 0 },
+      }),
+    ),
+    getUser: jest.fn(() =>
+      Promise.resolve({ id: userAId, email: 'user-a@example.com' }),
+    ),
+    systemStatus: jest.fn(() =>
+      Promise.resolve({
+        status: 'HEALTHY',
+        timestamp: new Date().toISOString(),
+        environment: 'test',
+        version: '0.0.1',
+        commit: null,
+        uptimeSeconds: 1,
+        api: { status: 'HEALTHY' },
+        database: { status: 'HEALTHY', latencyMs: 1 },
+        migrations: {
+          status: 'HEALTHY',
+          appliedCount: 1,
+          latestMigration: 'x',
+          latestAppliedAt: new Date().toISOString(),
+          pending: false,
+        },
+        email: {
+          status: 'UNAVAILABLE',
+          configured: false,
+          deliveryFailuresLast7d: 0,
+        },
       }),
     ),
   };
@@ -155,6 +207,26 @@ describe('PlatformAdmin authorization and tenant isolation (e2e)', () => {
       .get('/platform-admin/users')
       .set('Cookie', cookie)
       .expect(403);
+    await request(app.getHttpServer())
+      .get('/platform-admin/activity')
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(`/platform-admin/users/${userAId}`)
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/platform-admin/security')
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/platform-admin/overview/growth')
+      .set('Cookie', cookie)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/platform-admin/system')
+      .set('Cookie', cookie)
+      .expect(403);
   });
 
   it('allows PLATFORM_ADMIN into every /platform-admin/* route with 200', async () => {
@@ -171,6 +243,37 @@ describe('PlatformAdmin authorization and tenant isolation (e2e)', () => {
       .get('/platform-admin/users')
       .set('Cookie', cookie)
       .expect(200);
+    await request(app.getHttpServer())
+      .get('/platform-admin/activity')
+      .set('Cookie', cookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/platform-admin/users/${userAId}`)
+      .set('Cookie', cookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get('/platform-admin/security')
+      .set('Cookie', cookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get('/platform-admin/overview/growth')
+      .set('Cookie', cookie)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get('/platform-admin/system')
+      .set('Cookie', cookie)
+      .expect(200);
+  });
+
+  it('GET /platform-admin/system never leaks configured secret values', async () => {
+    const cookie = await cookieFor(PLATFORM_ADMIN_SESSION);
+    const response = await request(app.getHttpServer())
+      .get('/platform-admin/system')
+      .set('Cookie', cookie)
+      .expect(200);
+
+    const serialized = JSON.stringify(response.body);
+    expect(serialized).not.toMatch(/DATABASE_URL|JWT_SECRET|RESEND_API_KEY/i);
   });
 
   it('lets PLATFORM_ADMIN see companies across tenants through /platform-admin/companies', async () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LoaderCircle, ShieldOff, TriangleAlert } from "lucide-react";
@@ -123,6 +124,38 @@ export default function AdminCompanyDetailPage() {
             <Metric label="Pagos" value={company.counts.payments} />
             <Metric label="Movimientos de stock" value={company.counts.stockMovements} />
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="border-b">
+          <CardTitle>Propietarios</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {company.owners.length === 0 ? (
+            <p className="py-4 text-body-sm text-muted-foreground">
+              Esta empresa no tiene un usuario con rol OWNER.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border py-1">
+              {company.owners.map((owner) => (
+                <li key={owner.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/admin/users/${owner.id}`}
+                      className="font-medium text-foreground hover:text-primary hover:underline"
+                    >
+                      {owner.firstName} {owner.lastName}
+                    </Link>
+                    <p className="truncate text-caption text-muted-foreground">{owner.email}</p>
+                  </div>
+                  <Badge variant={owner.isActive ? "success" : "danger"}>
+                    {owner.isActive ? "Activo" : "Inactivo"}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

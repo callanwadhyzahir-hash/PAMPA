@@ -94,32 +94,33 @@ model client {
 }
 
 model company {
-  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_type_id  String             @db.Uuid
-  tax_condition_id String             @db.Uuid
-  currency_id      String             @db.Uuid
-  name             String             @db.VarChar(200)
-  legal_name       String?            @db.VarChar(250)
-  tax_id           String             @unique @db.VarChar(30)
-  email            String?            @db.VarChar(255)
-  phone            String?            @db.VarChar(50)
-  website          String?            @db.VarChar(255)
-  logo_url         String?
-  is_active        Boolean            @default(true)
-  created_at       DateTime           @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
-  branch           branch[]
-  client           client[]
-  currency         currency           @relation(fields: [currency_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_company_currency")
-  tax_condition    tax_condition      @relation(fields: [tax_condition_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_company_tax_condition")
-  company_type     company_type       @relation(fields: [company_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_company_type")
-  product          product[]
-  product_category product_category[]
-  role             role[]
-  sale             sale[]
-  user             user[]
-  warehouse        warehouse[]
-  security_event   security_event[]
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_type_id         String                    @db.Uuid
+  tax_condition_id        String                    @db.Uuid
+  currency_id             String                    @db.Uuid
+  name                    String                    @db.VarChar(200)
+  legal_name              String?                   @db.VarChar(250)
+  tax_id                  String                    @unique @db.VarChar(30)
+  email                   String?                   @db.VarChar(255)
+  phone                   String?                   @db.VarChar(50)
+  website                 String?                   @db.VarChar(255)
+  logo_url                String?
+  is_active               Boolean                   @default(true)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  branch                  branch[]
+  client                  client[]
+  currency                currency                  @relation(fields: [currency_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_company_currency")
+  tax_condition           tax_condition             @relation(fields: [tax_condition_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_company_tax_condition")
+  company_type            company_type              @relation(fields: [company_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_company_type")
+  mercadolibre_connection mercadolibre_connection[]
+  product                 product[]
+  product_category        product_category[]
+  role                    role[]
+  sale                    sale[]
+  user                    user[]
+  warehouse               warehouse[]
+  security_event          security_event[]
 
   @@index([created_at], map: "idx_company_created")
 }
@@ -213,6 +214,104 @@ model invoice_fiscal_attempt {
   @@index([company_id, started_at], map: "idx_invoice_fiscal_attempt_company_started")
 }
 
+/// Mercado Libre v1: one connection per company. Tokens are stored encrypted
+/// (AES-256-GCM via MERCADOLIBRE_TOKEN_ENCRYPTION_KEY) and never selected
+/// into API responses — see MercadoLibreConnectionRepository.
+model mercadolibre_connection {
+  id                      String                 @id(map: "pk_mercadolibre_connection") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id              String                 @db.Uuid
+  /// 'REAL' | 'MOCK'. Set explicitly on every write (no DB default) so a
+  /// connection can never end up mock/real by omission — mirrors
+  /// invoice.fiscal_provider in the ARCA module.
+  provider                String                 @db.VarChar(10)
+  ml_user_id              String                 @db.VarChar(50)
+  nickname                String                 @db.VarChar(100)
+  site_id                 String                 @db.VarChar(10)
+  access_token_encrypted  String?
+  refresh_token_encrypted String?
+  token_expires_at        DateTime?              @db.Timestamptz(6)
+  scopes                  String?                @db.VarChar(200)
+  status                  String                 @default("DISCONNECTED") @db.VarChar(20)
+  last_sync_at            DateTime?              @db.Timestamptz(6)
+  last_error              String?
+  created_at              DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime               @default(now()) @db.Timestamptz(6)
+  company                 company                @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_mercadolibre_connection_company")
+  mercadolibre_listing    mercadolibre_listing[]
+  mercadolibre_order      mercadolibre_order[]
+
+  @@unique([company_id], map: "uq_mercadolibre_connection_company")
+  @@unique([id, company_id], map: "uq_mercadolibre_connection_id_company")
+}
+
+/// Local cache/snapshot of a Mercado Libre publicación. Linking to a PAMPA
+/// product is a manual association only — v1 does not sync stock or price.
+model mercadolibre_listing {
+  id                        String                     @id(map: "pk_mercadolibre_listing") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id                String                     @db.Uuid
+  connection_id             String                     @db.Uuid
+  ml_item_id                String                     @db.VarChar(30)
+  title                     String                     @db.VarChar(255)
+  status                    String                     @db.VarChar(20)
+  price                     Decimal                    @db.Decimal(15, 2)
+  currency_id               String                     @db.VarChar(10)
+  available_quantity        Int                        @default(0)
+  sold_quantity             Int                        @default(0)
+  thumbnail_url             String?
+  permalink                 String?
+  last_synced_at            DateTime                   @default(now()) @db.Timestamptz(6)
+  created_at                DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                   @default(now()) @db.Timestamptz(6)
+  connection                mercadolibre_connection    @relation(fields: [connection_id, company_id], references: [id, company_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercadolibre_listing_connection_company")
+  mercadolibre_product_link mercadolibre_product_link?
+
+  @@unique([connection_id, ml_item_id], map: "uq_mercadolibre_listing_connection_item")
+  @@unique([id, company_id], map: "uq_mercadolibre_listing_id_company")
+  @@index([company_id], map: "idx_mercadolibre_listing_company")
+}
+
+/// Manual association listing <-> product. Composite FKs on both sides pin
+/// listing and product to the same company_id, so a link can never cross
+/// tenants even if application code passes a bad ID.
+model mercadolibre_product_link {
+  id         String               @id(map: "pk_mercadolibre_product_link") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id String               @db.Uuid
+  listing_id String               @db.Uuid
+  product_id String               @db.Uuid
+  created_at DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at DateTime             @default(now()) @db.Timestamptz(6)
+  listing    mercadolibre_listing @relation(fields: [listing_id, company_id], references: [id, company_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercadolibre_product_link_listing_company")
+  product    product              @relation(fields: [product_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_mercadolibre_product_link_product_company")
+
+  @@unique([listing_id, company_id], map: "uq_mercadolibre_product_link_listing")
+  @@unique([id, company_id], map: "uq_mercadolibre_product_link_id_company")
+  @@index([company_id], map: "idx_mercadolibre_product_link_company")
+  @@index([product_id], map: "idx_mercadolibre_product_link_product")
+}
+
+/// Local cache/snapshot of a Mercado Libre order. Minimizes buyer PII —
+/// only an optional nickname, no address/email/phone.
+model mercadolibre_order {
+  id             String                  @id(map: "pk_mercadolibre_order") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id     String                  @db.Uuid
+  connection_id  String                  @db.Uuid
+  ml_order_id    String                  @db.VarChar(30)
+  status         String                  @db.VarChar(30)
+  total_amount   Decimal                 @db.Decimal(15, 2)
+  currency_id    String                  @db.VarChar(10)
+  buyer_nickname String?                 @db.VarChar(100)
+  date_created   DateTime                @db.Timestamptz(6)
+  date_closed    DateTime?               @db.Timestamptz(6)
+  last_synced_at DateTime                @default(now()) @db.Timestamptz(6)
+  created_at     DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                @default(now()) @db.Timestamptz(6)
+  connection     mercadolibre_connection @relation(fields: [connection_id, company_id], references: [id, company_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_mercadolibre_order_connection_company")
+
+  @@unique([connection_id, ml_order_id], map: "uq_mercadolibre_order_connection_order")
+  @@unique([id, company_id], map: "uq_mercadolibre_order_id_company")
+  @@index([company_id, date_created], map: "idx_mercadolibre_order_company_date")
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model payment {
   id                  String         @id(map: "pk_payment") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -264,27 +363,28 @@ model permission {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model product {
-  id               String            @id(map: "pk_product") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_id       String            @db.Uuid
-  category_id      String?           @db.Uuid
-  code             String            @db.VarChar(50)
-  barcode          String?           @db.VarChar(100)
-  name             String            @db.VarChar(200)
-  description      String?
-  product_type     String            @db.VarChar(20)
-  unit             String            @default("UNIT") @db.VarChar(20)
-  cost             Decimal           @default(0) @db.Decimal(15, 2)
-  sale_price       Decimal           @default(0) @db.Decimal(15, 2)
-  tax_rate         Decimal           @default(21) @db.Decimal(5, 2)
-  tracks_stock     Boolean           @default(true)
-  is_active        Boolean           @default(true)
-  created_at       DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime          @default(now()) @db.Timestamptz(6)
-  product_category product_category? @relation(fields: [category_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_category_company")
-  company          company           @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_company")
-  sale_item        sale_item[]
-  stock            stock[]
-  stock_movement   stock_movement[]
+  id                        String                      @id(map: "pk_product") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id                String                      @db.Uuid
+  category_id               String?                     @db.Uuid
+  code                      String                      @db.VarChar(50)
+  barcode                   String?                     @db.VarChar(100)
+  name                      String                      @db.VarChar(200)
+  description               String?
+  product_type              String                      @db.VarChar(20)
+  unit                      String                      @default("UNIT") @db.VarChar(20)
+  cost                      Decimal                     @default(0) @db.Decimal(15, 2)
+  sale_price                Decimal                     @default(0) @db.Decimal(15, 2)
+  tax_rate                  Decimal                     @default(21) @db.Decimal(5, 2)
+  tracks_stock              Boolean                     @default(true)
+  is_active                 Boolean                     @default(true)
+  created_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  product_category          product_category?           @relation(fields: [category_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_category_company")
+  company                   company                     @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_company")
+  mercadolibre_product_link mercadolibre_product_link[]
+  sale_item                 sale_item[]
+  stock                     stock[]
+  stock_movement            stock_movement[]
 
   @@unique([company_id, code], map: "uq_product_company_code")
   @@unique([company_id, barcode], map: "uq_product_company_barcode")
@@ -474,33 +574,33 @@ model tax_condition {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model user {
-  id                    String                 @id(map: "pk_user") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  company_id            String                 @db.Uuid
-  branch_id             String?                @db.Uuid
-  first_name            String                 @db.VarChar(100)
-  last_name             String                 @db.VarChar(100)
-  email                 String                 @unique(map: "uq_user_email") @db.VarChar(255)
-  password_hash         String
-  phone                 String?                @db.VarChar(50)
-  avatar_url            String?
-  last_login_at         DateTime?              @db.Timestamptz(6)
-  is_active             Boolean                @default(true)
-  token_version         Int                    @default(0)
-  email_verified_at     DateTime?              @db.Timestamptz(6)
-  created_at            DateTime               @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime               @default(now()) @db.Timestamptz(6)
-  sale                  sale[]
-  payment               payment[]
-  stock_movement        stock_movement[]
-  branch                branch?                @relation(fields: [branch_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_branch_company")
-  company               company                @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_company")
-  user_role             user_role[]
-  session               session[]
-  password_reset_token  password_reset_token[]
+  id                       String                     @id(map: "pk_user") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id               String                     @db.Uuid
+  branch_id                String?                    @db.Uuid
+  first_name               String                     @db.VarChar(100)
+  last_name                String                     @db.VarChar(100)
+  email                    String                     @unique(map: "uq_user_email") @db.VarChar(255)
+  password_hash            String
+  phone                    String?                    @db.VarChar(50)
+  avatar_url               String?
+  last_login_at            DateTime?                  @db.Timestamptz(6)
+  is_active                Boolean                    @default(true)
+  token_version            Int                        @default(0)
+  email_verified_at        DateTime?                  @db.Timestamptz(6)
+  created_at               DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                   @default(now()) @db.Timestamptz(6)
+  sale                     sale[]
+  payment                  payment[]
+  stock_movement           stock_movement[]
+  branch                   branch?                    @relation(fields: [branch_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_branch_company")
+  company                  company                    @relation(fields: [company_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_company")
+  user_role                user_role[]
+  session                  session[]
+  password_reset_token     password_reset_token[]
   email_verification_token email_verification_token[]
-  platform_admin        platform_admin?
-  security_event_actor  security_event[]       @relation("security_event_actor")
-  security_event_target security_event[]       @relation("security_event_target")
+  platform_admin           platform_admin?
+  security_event_actor     security_event[]           @relation("security_event_actor")
+  security_event_target    security_event[]           @relation("security_event_target")
 
   @@unique([id, company_id], map: "uq_user_id_company")
   @@index([branch_id], map: "idx_user_branch")

@@ -320,6 +320,18 @@ export const TENANT_PERMISSIONS = [
     'invoices',
     'Cancelar comprobantes mediante un flujo auditable.',
   ),
+  permission(
+    'integrations.mercadolibre.read',
+    'Ver integración Mercado Libre',
+    'integrations',
+    'Consultar estado, publicaciones y órdenes de Mercado Libre.',
+  ),
+  permission(
+    'integrations.mercadolibre.manage',
+    'Gestionar integración Mercado Libre',
+    'integrations',
+    'Conectar, desconectar, sincronizar y vincular publicaciones de Mercado Libre.',
+  ),
 ] as const satisfies readonly PermissionDefinition[];
 
 export const SYSTEM_ROLES: readonly SystemRoleDefinition[] = [
@@ -398,6 +410,8 @@ export const ROLE_PERMISSION_MATRIX: Readonly<
     'sales.cancel',
     'payments.read',
     'invoices.read',
+    'integrations.mercadolibre.read',
+    'integrations.mercadolibre.manage',
   ],
   SELLER: [
     'products.read',
@@ -410,6 +424,7 @@ export const ROLE_PERMISSION_MATRIX: Readonly<
     'sales.create',
     'sales.update',
     'payments.read',
+    'integrations.mercadolibre.read',
   ],
   CASHIER: [
     'products.read',

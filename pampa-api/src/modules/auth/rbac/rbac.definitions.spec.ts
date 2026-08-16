@@ -10,7 +10,7 @@ describe('RBAC definitions', () => {
 
   it('defines unique tenant permissions without platform capabilities', () => {
     expect(new Set(permissionCodes).size).toBe(permissionCodes.length);
-    expect(permissionCodes).toHaveLength(48);
+    expect(permissionCodes).toHaveLength(50);
     expect(
       permissionCodes.some((code) =>
         /^(platform|countries|currencies|company_types|tax_conditions)\./.test(

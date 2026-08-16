@@ -11,6 +11,7 @@ import {
   GitBranch,
   LayoutDashboard,
   Package,
+  Plug,
   ShieldCheck,
   ShoppingCart,
   Tags,
@@ -118,6 +119,13 @@ const navigation: NavigationItem[] = [
     icon: ChartNoAxesCombined,
     permission: "sales.read",
     section: "Análisis",
+  },
+  {
+    label: "Mercado Libre",
+    href: "/dashboard/integrations/mercadolibre",
+    icon: Plug,
+    permission: "integrations.mercadolibre.read",
+    section: "Integraciones",
   },
 ];
 

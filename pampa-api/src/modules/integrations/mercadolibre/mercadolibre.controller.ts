@@ -186,7 +186,15 @@ export class MercadoLibreController {
       secure: production,
       sameSite: 'lax' as const,
       maxAge: 10 * 60 * 1000,
-      path: '/integrations/mercadolibre',
+      /**
+       * Must be a literal prefix of every path the browser sees for both
+       * /connect and /callback. The frontend calls this API through its own
+       * same-origin proxy (src/app/api/backend/[...path]/route.ts), so the
+       * browser's real request path is /api/backend/integrations/mercadolibre/...,
+       * not /integrations/mercadolibre/... — scoping to the latter meant the
+       * cookie set at /connect was never sent back at /callback.
+       */
+      path: '/',
     };
   }
 

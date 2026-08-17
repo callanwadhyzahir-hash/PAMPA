@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Optional,
   Param,
   ParseUUIDPipe,
@@ -49,6 +50,8 @@ function extractCookie(request: Request, name: string) {
 @ApiCookieAuth('pampa_access')
 @Controller('integrations/mercadolibre')
 export class MercadoLibreController {
+  private readonly logger = new Logger(MercadoLibreController.name);
+
   constructor(
     private readonly connections: MercadoLibreConnectionService,
     private readonly oauth: MercadoLibreOAuthService,
@@ -110,7 +113,12 @@ export class MercadoLibreController {
       });
       response.clearCookie(CODE_VERIFIER_COOKIE, this.verifierCookieOptions());
       response.redirect(`${redirectBase}?ml=connected`);
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `Mercado Libre callback failed (codeVerifier cookie present: ${Boolean(codeVerifier)}): ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
       response.clearCookie(CODE_VERIFIER_COOKIE, this.verifierCookieOptions());
       response.redirect(`${redirectBase}?ml=error`);
     }

@@ -28,6 +28,7 @@ import { MercadoLibreConnectionService } from './connection/connection.service';
 import { LinkListingDto } from './listings/dto/link-listing.dto';
 import { ListingQueryDto } from './listings/dto/listing-query.dto';
 import { MercadoLibreListingsService } from './listings/listings.service';
+import { MercadoLibreDomainError } from './mercadolibre.errors';
 import { MERCADOLIBRE_PERMISSIONS } from './mercadolibre.permissions';
 import { MercadoLibreOAuthService } from './oauth/oauth.service';
 import { OrderQueryDto } from './orders/dto/order-query.dto';
@@ -114,13 +115,25 @@ export class MercadoLibreController {
       response.clearCookie(CODE_VERIFIER_COOKIE, this.verifierCookieOptions());
       response.redirect(`${redirectBase}?ml=connected`);
     } catch (error) {
+      const errorDetail =
+        error instanceof Error
+          ? `${error.constructor.name}: ${error.message || '(empty message)'}${
+              error instanceof MercadoLibreDomainError
+                ? ` status=${error.getStatus()} body=${JSON.stringify(error.getResponse())}`
+                : ''
+            }`
+          : `non-Error thrown: ${JSON.stringify(error)}`;
       this.logger.warn(
-        `Mercado Libre callback failed (codeVerifier cookie present: ${Boolean(codeVerifier)}): ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
+        `Mercado Libre callback failed (codeVerifier cookie present: ${Boolean(codeVerifier)}): ${errorDetail}`,
       );
       response.clearCookie(CODE_VERIFIER_COOKIE, this.verifierCookieOptions());
-      response.redirect(`${redirectBase}?ml=error`);
+      const reason =
+        error instanceof MercadoLibreDomainError
+          ? (error.getResponse() as { code?: string }).code
+          : undefined;
+      response.redirect(
+        `${redirectBase}?ml=error${reason ? `&reason=${encodeURIComponent(reason)}` : ''}`,
+      );
     }
   }
 

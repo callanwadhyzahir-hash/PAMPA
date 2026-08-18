@@ -71,6 +71,16 @@ export class MercadoLibreRateLimitedError extends MercadoLibreDomainError {
   }
 }
 
+export class MercadoLibreAccountAlreadyLinkedError extends MercadoLibreDomainError {
+  constructor() {
+    super(
+      'MERCADOLIBRE_ACCOUNT_ALREADY_LINKED',
+      'Esta cuenta de Mercado Libre ya está conectada a otra empresa en PAMPA. Desconectala ahí primero, o iniciá sesión en Mercado Libre con una cuenta distinta antes de conectar.',
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
 export class MercadoLibreLinkConflictError extends MercadoLibreDomainError {
   constructor() {
     super(

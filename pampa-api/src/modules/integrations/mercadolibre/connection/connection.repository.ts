@@ -43,6 +43,14 @@ export class MercadoLibreConnectionRepository {
     });
   }
 
+  /** Used to block linking one real ML seller account to more than one company at a time. */
+  findConnectedByMlUserId(mlUserId: string) {
+    return this.prisma.mercadolibre_connection.findFirst({
+      where: { ml_user_id: mlUserId, status: 'CONNECTED' },
+      select: { company_id: true },
+    });
+  }
+
   /** Includes encrypted token columns — only for internal use building outbound API calls. Never return this directly from a controller. */
   findWithTokensByCompany(companyId: string) {
     return this.prisma.mercadolibre_connection.findUnique({

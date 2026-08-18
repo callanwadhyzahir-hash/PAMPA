@@ -64,7 +64,12 @@ export default function MercadoLibreIntegrationPage() {
     const timer = window.setTimeout(() => {
       const result = searchParams.get('ml');
       if (result === 'error') {
-        setActionError('No se pudo completar la conexión con Mercado Libre. Intentá nuevamente.');
+        const reason = searchParams.get('reason');
+        setActionError(
+          reason === 'MERCADOLIBRE_ACCOUNT_ALREADY_LINKED'
+            ? 'Esta cuenta de Mercado Libre ya está conectada a otra empresa en PAMPA. Desconectala ahí primero, o iniciá sesión en Mercado Libre con una cuenta distinta antes de conectar.'
+            : 'No se pudo completar la conexión con Mercado Libre. Intentá nuevamente.',
+        );
         router.replace('/dashboard/integrations/mercadolibre');
       } else if (result === 'connected') {
         router.replace('/dashboard/integrations/mercadolibre');

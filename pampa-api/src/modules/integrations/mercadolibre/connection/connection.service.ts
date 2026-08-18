@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { MercadoLibreTokenCipher } from '../crypto/mercadolibre-token-cipher';
 import { MercadoLibreConfigService } from '../mercadolibre.config';
 import {
+  MercadoLibreAccountAlreadyLinkedError,
   MercadoLibreNotConnectedError,
   MercadoLibreTokenRefreshFailedError,
 } from '../mercadolibre.errors';
@@ -63,6 +64,14 @@ export class MercadoLibreConnectionService {
     userInfo: MercadoLibreUserInfo,
     provider: 'REAL' | 'MOCK',
   ) {
+    // MOCK always returns the same fixture mlUserId by design (dev/demo
+    // fixtures) — the cross-company guard only makes sense for REAL sellers.
+    if (provider === 'REAL') {
+      const existing = await this.repository.findConnectedByMlUserId(userInfo.id);
+      if (existing && existing.company_id !== companyId) {
+        throw new MercadoLibreAccountAlreadyLinkedError();
+      }
+    }
     await this.repository.upsert(companyId, {
       provider,
       mlUserId: userInfo.id,

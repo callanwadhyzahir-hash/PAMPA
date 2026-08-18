@@ -230,7 +230,7 @@ model mercadolibre_connection {
   access_token_encrypted  String?
   refresh_token_encrypted String?
   token_expires_at        DateTime?              @db.Timestamptz(6)
-  scopes                  String?                @db.VarChar(200)
+  scopes                  String?
   status                  String                 @default("DISCONNECTED") @db.VarChar(20)
   last_sync_at            DateTime?              @db.Timestamptz(6)
   last_error              String?

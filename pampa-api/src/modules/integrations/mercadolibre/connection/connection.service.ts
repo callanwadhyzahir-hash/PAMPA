@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { MercadoLibreTokenCipher } from '../crypto/mercadolibre-token-cipher';
 import { MercadoLibreConfigService } from '../mercadolibre.config';
@@ -21,8 +21,6 @@ const REFRESH_MARGIN_MS = 60_000;
 
 @Injectable()
 export class MercadoLibreConnectionService {
-  private readonly logger = new Logger(MercadoLibreConnectionService.name);
-
   constructor(
     private readonly repository: MercadoLibreConnectionRepository,
     private readonly cipher: MercadoLibreTokenCipher,
@@ -65,11 +63,6 @@ export class MercadoLibreConnectionService {
     userInfo: MercadoLibreUserInfo,
     provider: 'REAL' | 'MOCK',
   ) {
-    // TEMP DEBUG (remove after diagnosing P2000 "value too long" on upsert):
-    // logs only field lengths, never the actual values/tokens.
-    this.logger.warn(
-      `persistFromOAuth field lengths — mlUserId:${userInfo.id.length} nickname:${userInfo.nickname.length} siteId:${userInfo.siteId.length} scope:${(tokenSet.scope ?? '').length}`,
-    );
     await this.repository.upsert(companyId, {
       provider,
       mlUserId: userInfo.id,

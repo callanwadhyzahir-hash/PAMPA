@@ -39,7 +39,10 @@ function Sidebar({ items, className, onNavigate }: SidebarProps) {
         </span>
       </div>
 
-      <nav className="mt-8 space-y-1" aria-label="Navegación principal">
+      <nav
+        className="mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto"
+        aria-label="Navegación principal"
+      >
         {items.map(({ label, href, icon: Icon, section }, index) => {
           const active =
             pathname === href ||

@@ -47,6 +47,19 @@ export function MacbookScroll({
     return () => mql.removeEventListener("change", handleChange);
   }, []);
 
+  const BASE_WIDTH_PX = 512; // 32rem lid width at the component's natural scale
+  const [containerScale, setContainerScale] = useState(1);
+  useEffect(() => {
+    function updateScale() {
+      const available = window.innerWidth;
+      const next = Math.min(1, (available * 0.9) / BASE_WIDTH_PX);
+      setContainerScale(Math.max(0.4, next));
+    }
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
   const scaleX = useTransform(scrollYProgress, [0, 0.3], [1.2, isMobile ? 1 : 1.5]);
   const scaleY = useTransform(scrollYProgress, [0, 0.3], [0.6, isMobile ? 1 : 1.5]);
   const translate = useTransform(scrollYProgress, [0, 1], [0, 1500]);
@@ -57,7 +70,8 @@ export function MacbookScroll({
   return (
     <div
       ref={ref}
-      className="flex min-h-[200vh] flex-shrink-0 scale-[0.35] flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-80"
+      style={{ transform: `scale(${containerScale})` }}
+      className="flex min-h-[200vh] flex-shrink-0 flex-col items-center justify-start py-0 [perspective:800px] md:py-80"
     >
       <motion.h2
         style={{ translateY: textTransform, opacity: textOpacity }}

@@ -153,7 +153,7 @@ export default function MercadoLibreIntegrationPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+        <CardHeader className="flex flex-col items-start gap-4 space-y-0 sm:flex-row sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
               <CardTitle>Mercado Libre</CardTitle>
@@ -165,14 +165,21 @@ export default function MercadoLibreIntegrationPage() {
             </CardDescription>
           </div>
           {status.connected && canManage ? (
-            <div className="flex shrink-0 gap-2">
-              <Button type="button" variant="outline" onClick={handleSync} disabled={syncing}>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSync}
+                disabled={syncing}
+                className="w-full sm:w-auto"
+              >
                 {syncing ? 'Sincronizando…' : 'Sincronizar ahora'}
               </Button>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={() => setDisconnectOpen(true)}
+                className="w-full sm:w-auto"
               >
                 Desconectar
               </Button>
@@ -217,13 +224,15 @@ export default function MercadoLibreIntegrationPage() {
 
       {status.connected ? (
         <Tabs defaultValue="resumen">
-          <TabsList>
-            <TabsIndicator />
-            <TabsTab value="resumen">Resumen</TabsTab>
-            <TabsTab value="listings">Publicaciones</TabsTab>
-            <TabsTab value="orders">Ventas</TabsTab>
-            <TabsTab value="settings">Configuración</TabsTab>
-          </TabsList>
+          <div className="-mx-5 overflow-x-auto px-5 sm:-mx-8 sm:px-8">
+            <TabsList>
+              <TabsIndicator />
+              <TabsTab value="resumen">Resumen</TabsTab>
+              <TabsTab value="listings">Publicaciones</TabsTab>
+              <TabsTab value="orders">Ventas</TabsTab>
+              <TabsTab value="settings">Configuración</TabsTab>
+            </TabsList>
+          </div>
 
           <TabsPanel value="resumen">
             <Card>

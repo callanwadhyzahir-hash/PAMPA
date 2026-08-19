@@ -100,9 +100,9 @@ export default function PaymentsPage() {
         <CardHeader>
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <CardTitle>Registro de pagos</CardTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <select
-                className="h-9 rounded-md border bg-background px-2 text-sm"
+                className="h-9 w-full rounded-md border bg-background px-2 text-sm sm:w-auto"
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
                 aria-label="Filtrar por estado"
@@ -113,7 +113,7 @@ export default function PaymentsPage() {
                 <option value="REFUNDED">Reembolsados</option>
               </select>
               <select
-                className="h-9 rounded-md border bg-background px-2 text-sm"
+                className="h-9 w-full rounded-md border bg-background px-2 text-sm sm:w-auto"
                 value={method}
                 onChange={(event) => setMethod(event.target.value)}
                 aria-label="Filtrar por método"

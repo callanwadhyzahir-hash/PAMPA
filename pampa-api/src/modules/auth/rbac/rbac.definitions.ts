@@ -332,6 +332,18 @@ export const TENANT_PERMISSIONS = [
     'integrations',
     'Conectar, desconectar, sincronizar y vincular publicaciones de Mercado Libre.',
   ),
+  permission(
+    'ai.use',
+    'Usar PAMPA IA',
+    'ai',
+    'Consultar al asistente de PAMPA IA.',
+  ),
+  permission(
+    'ai.usage.read',
+    'Ver consumo de PAMPA IA',
+    'ai',
+    'Consultar el consumo de créditos de PAMPA IA de la empresa.',
+  ),
 ] as const satisfies readonly PermissionDefinition[];
 
 export const SYSTEM_ROLES: readonly SystemRoleDefinition[] = [
@@ -412,6 +424,8 @@ export const ROLE_PERMISSION_MATRIX: Readonly<
     'invoices.read',
     'integrations.mercadolibre.read',
     'integrations.mercadolibre.manage',
+    'ai.use',
+    'ai.usage.read',
   ],
   SELLER: [
     'products.read',

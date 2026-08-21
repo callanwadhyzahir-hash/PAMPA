@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { CircleHelp, LoaderCircle, LogOut, Menu, ShieldCheck } from "lucide-react";
+import { CircleHelp, LoaderCircle, LogOut, Menu, ShieldCheck, Sparkles } from "lucide-react";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { PampaAiPanel } from "@/components/pampa-ui";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { authService } from "@/services/auth.service";
 import type { AuthUser } from "@/types/auth";
@@ -66,6 +67,7 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
   const router = useRouter();
   const { user, loading } = useAuthSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [helpCenterOpen, setHelpCenterOpen] = useState(false);
 
   useEffect(() => {
@@ -135,6 +137,18 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
                   <ShieldCheck className="size-4" aria-hidden />
                 </Link>
               ) : null}
+              {user.permissions.includes("ai.use") ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAiPanelOpen(true)}
+                  aria-label="Abrir PAMPA IA"
+                  className="gap-1.5"
+                >
+                  <Sparkles className="size-4 text-primary" aria-hidden />
+                  <span className="hidden sm:inline">PAMPA IA</span>
+                </Button>
+              ) : null}
               <ThemeToggle />
               <Button
                 variant="ghost"
@@ -167,6 +181,7 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
         </SheetContent>
       </Sheet>
 
+      <PampaAiPanel open={aiPanelOpen} onOpenChange={setAiPanelOpen} />
       <OnboardingEngine />
       <HelpCenter open={helpCenterOpen} onOpenChange={setHelpCenterOpen} />
       </div>

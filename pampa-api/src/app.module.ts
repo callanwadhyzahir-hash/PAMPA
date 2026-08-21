@@ -22,6 +22,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { FiscalModule } from './modules/fiscal/fiscal.module';
 import { MercadoLibreModule } from './modules/integrations/mercadolibre/mercadolibre.module';
 import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
+import { AiModule } from './modules/ai/ai.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { HealthController } from './health.controller';
 
@@ -52,6 +53,7 @@ import { HealthController } from './health.controller';
     FiscalModule.forRoot(),
     MercadoLibreModule,
     PlatformAdminModule,
+    AiModule,
     OnboardingModule,
   ],
   controllers: [HealthController],

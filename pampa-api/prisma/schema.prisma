@@ -121,6 +121,8 @@ model company {
   user                    user[]
   warehouse               warehouse[]
   security_event          security_event[]
+  company_ai_subscription company_ai_subscription?
+  ai_usage_ledger         ai_usage_ledger[]
   user_onboarding_progress user_onboarding_progress[]
 
   @@index([created_at], map: "idx_company_created")
@@ -604,6 +606,7 @@ model user {
   platform_admin           platform_admin?
   security_event_actor     security_event[]           @relation("security_event_actor")
   security_event_target    security_event[]           @relation("security_event_target")
+  ai_usage_ledger          ai_usage_ledger[]
   user_onboarding_progress user_onboarding_progress[]
 
   @@unique([id, company_id], map: "uq_user_id_company")
@@ -732,6 +735,60 @@ model warehouse {
 
   @@unique([company_id, code], map: "uq_warehouse_company_code")
   @@unique([id, company_id], map: "uq_warehouse_id_company")
+}
+
+/// PAMPA IA — quota/economics per tenant. One row per company (company_id is
+/// both PK and FK). `*_period` counters are the settled totals for the
+/// current billing period (period_start..period_end); `reserved_*` are
+/// in-flight amounts held by AiQuotaService.reserve() for requests that are
+/// mid-flight to the provider (settled/released by AiQuotaService.settle()).
+/// See docs/pampa-ai-architecture.md for the reservation/concurrency design.
+model company_ai_subscription {
+  company_id               String   @id(map: "pk_company_ai_subscription") @db.Uuid
+  enabled                  Boolean  @default(false)
+  plan_code                String   @default("AI_FREE") @db.VarChar(20)
+  monthly_credit_limit     Int      @default(0)
+  /// Never exposed to tenant-facing endpoints — Platform Admin only.
+  internal_cost_limit_usd  Decimal  @default(0) @db.Decimal(10, 4)
+  credits_used_period      Decimal  @default(0) @db.Decimal(12, 4)
+  reserved_credits_period  Decimal  @default(0) @db.Decimal(12, 4)
+  cost_used_period_usd     Decimal  @default(0) @db.Decimal(12, 8)
+  reserved_cost_period_usd Decimal  @default(0) @db.Decimal(12, 8)
+  period_start             DateTime @db.Timestamptz(6)
+  period_end               DateTime @db.Timestamptz(6)
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime @default(now()) @db.Timestamptz(6)
+  company                  company  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_company_ai_subscription_company")
+}
+
+/// PAMPA IA economic ledger — one row per completed (or failed) provider
+/// call. Deliberately does NOT store prompts/responses (see AI Usage Ledger
+/// vs AI Conversation History in docs/pampa-ai-architecture.md) — this table
+/// only ever holds token counts and cost, never conversation content.
+model ai_usage_ledger {
+  id                  String   @id(map: "pk_ai_usage_ledger") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id          String   @db.Uuid
+  user_id             String?  @db.Uuid
+  provider            String   @db.VarChar(20)
+  model               String   @db.VarChar(50)
+  operation           String   @db.VarChar(40)
+  input_tokens        Int      @default(0)
+  cached_input_tokens Int      @default(0)
+  output_tokens       Int      @default(0)
+  total_tokens        Int      @default(0)
+  estimated_cost_usd  Decimal  @default(0) @db.Decimal(12, 8)
+  credits_used        Decimal  @default(0) @db.Decimal(10, 4)
+  /// 'SUCCESS' | 'ERROR'
+  status              String   @db.VarChar(20)
+  error_code          String?  @db.VarChar(60)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  company             company  @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ai_usage_ledger_company")
+  user                user?    @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_ai_usage_ledger_user")
+
+  @@index([company_id, created_at], map: "idx_ai_usage_ledger_company_created")
+  @@index([user_id, created_at], map: "idx_ai_usage_ledger_user_created")
+  @@index([created_at], map: "idx_ai_usage_ledger_created")
+  @@index([provider, model], map: "idx_ai_usage_ledger_provider_model")
 }
 
 /// Per-user, per-tour onboarding progress. One row per (user, tour); a tour

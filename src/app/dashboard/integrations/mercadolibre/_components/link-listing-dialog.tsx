@@ -11,6 +11,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/pampa-ui/feedback/empty-state';
+import { ProductImage } from '@/components/pampa-ui/products/product-image';
+import { ProductPickerRow } from '@/components/pampa-ui/products/product-picker-row';
 import { SearchInput } from '@/components/pampa-ui/search/search-input';
 import { productsService, type Product } from '@/services/catalog/products.service';
 import type { MercadoLibreListing } from '@/services/integrations/mercadolibre.service';
@@ -71,10 +73,23 @@ function LinkListingDialog({ listing, onOpenChange, onLink }: LinkListingDialogP
         <DialogHeader>
           <DialogTitle>Vincular producto de PAMPA</DialogTitle>
           <DialogDescription>
-            {listing.title} — Esto solo asocia la publicación con un producto de
-            PAMPA. No sincroniza precio ni stock automáticamente.
+            Esto solo asocia la publicación con un producto de PAMPA. No
+            sincroniza precio ni stock automáticamente.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+          <ProductImage
+            src={listing.thumbnail_url}
+            alt={listing.title}
+            size="md"
+            unoptimized
+          />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Publicación Mercado Libre</p>
+            <p className="truncate font-medium">{listing.title}</p>
+          </div>
+        </div>
 
         <SearchInput
           placeholder="Buscar por nombre o código"
@@ -91,12 +106,14 @@ function LinkListingDialog({ listing, onOpenChange, onLink }: LinkListingDialogP
             products.map((product) => (
               <div
                 key={product.id}
-                className="flex w-full items-center justify-between rounded-sm border border-transparent px-3 py-2 text-sm hover:border-border hover:bg-accent"
+                className="flex w-full items-center justify-between gap-2 rounded-sm border border-transparent px-3 py-2 text-sm hover:border-border hover:bg-accent"
               >
-                <span>
-                  <span className="font-medium">{product.name}</span>{' '}
-                  <span className="text-muted-foreground">· {product.code}</span>
-                </span>
+                <ProductPickerRow
+                  imageUrl={product.image_url}
+                  name={product.name}
+                  code={product.code}
+                  barcode={product.barcode}
+                />
                 <Button
                   type="button"
                   size="sm"

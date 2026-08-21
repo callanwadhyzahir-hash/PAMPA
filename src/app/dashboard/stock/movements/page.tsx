@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { ErrorState, LoadingState } from '@/components/pampa-ui';
+import { ErrorState, LoadingState, ProductImage } from '@/components/pampa-ui';
 import { Badge } from '@/components/ui/badge';
 import {
   Card,
@@ -96,10 +96,19 @@ export default function StockMovementsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {movement.product.name}
-                      <span className="block text-xs text-muted-foreground">
-                        {movement.product.code}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <ProductImage
+                          src={movement.product.image_url}
+                          alt={movement.product.name}
+                          size="xs"
+                        />
+                        <div>
+                          {movement.product.name}
+                          <span className="block text-xs text-muted-foreground">
+                            {movement.product.code}
+                          </span>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>{movement.warehouse.name}</TableCell>
                     <TableCell>

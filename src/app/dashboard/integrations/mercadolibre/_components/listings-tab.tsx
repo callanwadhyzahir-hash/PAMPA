@@ -13,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/pampa-ui/feedback/empty-state';
+import { ProductImage } from '@/components/pampa-ui/products/product-image';
 import { SearchInput } from '@/components/pampa-ui/search/search-input';
 import {
   mercadolibreService,
@@ -102,8 +103,18 @@ function ListingsTab({ canManage }: { canManage: boolean }) {
             {items.map((listing) => (
               <TableRow key={listing.id}>
                 <TableCell>
-                  <p className="font-medium">{listing.title}</p>
-                  <p className="text-xs text-muted-foreground">{listing.ml_item_id}</p>
+                  <div className="flex items-center gap-2">
+                    <ProductImage
+                      src={listing.thumbnail_url}
+                      alt={listing.title}
+                      size="sm"
+                      unoptimized
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{listing.title}</p>
+                      <p className="text-xs text-muted-foreground">{listing.ml_item_id}</p>
+                    </div>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Badge variant={listing.status === 'active' ? 'success' : 'neutral'}>
@@ -114,7 +125,16 @@ function ListingsTab({ canManage }: { canManage: boolean }) {
                 <TableCell>{listing.available_quantity}</TableCell>
                 <TableCell>
                   {listing.mercadolibre_product_link ? (
-                    <Badge variant="info">{listing.mercadolibre_product_link.product.name}</Badge>
+                    <div className="flex items-center gap-2">
+                      <ProductImage
+                        src={listing.mercadolibre_product_link.product.image_url}
+                        alt={listing.mercadolibre_product_link.product.name}
+                        size="sm"
+                      />
+                      <Badge variant="info">
+                        {listing.mercadolibre_product_link.product.name}
+                      </Badge>
+                    </div>
                   ) : (
                     <span className="text-sm text-muted-foreground">Sin vincular</span>
                   )}

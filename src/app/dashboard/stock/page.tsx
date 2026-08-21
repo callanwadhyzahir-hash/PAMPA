@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeftRight, Boxes, Camera, ScanLine, SlidersHorizontal } from 'lucide-react';
 
 import { BarcodeCameraDialog } from '@/components/barcode';
-import { ErrorState, LoadingState } from '@/components/pampa-ui';
+import { ErrorState, LoadingState, ProductImage } from '@/components/pampa-ui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -71,6 +71,7 @@ export default function StockPage() {
 
   const canAdjust = user?.permissions.includes('stock.adjust') ?? false;
   const canTransfer = user?.permissions.includes('stock.transfer') ?? false;
+  const selectedProduct = products.find((product) => product.id === productId);
 
   async function load() {
     setLoading(true);
@@ -224,10 +225,19 @@ export default function StockPage() {
                   return (
                     <TableRow key={row.id}>
                       <TableCell>
-                        <p className="font-medium">{row.product.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {row.product.code}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <ProductImage
+                            src={row.product.image_url}
+                            alt={row.product.name}
+                            size="sm"
+                          />
+                          <div>
+                            <p className="font-medium">{row.product.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {row.product.code}
+                            </p>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>{row.warehouse.name}</TableCell>
                       <TableCell>{row.warehouse.branch.name}</TableCell>
@@ -273,6 +283,22 @@ export default function StockPage() {
                   label: `${product.name} · ${product.code}`,
                 }))}
               />
+              {selectedProduct ? (
+                <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2">
+                  <ProductImage
+                    src={selectedProduct.image_url}
+                    alt={selectedProduct.name}
+                    size="sm"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">{selectedProduct.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedProduct.code} · Stock actual{' '}
+                      {selectedProduct.total_stock} {selectedProduct.unit}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
               <SelectField
                 label={action === 'transfer' ? 'Depósito de origen' : 'Depósito'}
                 value={warehouseId}
@@ -483,12 +509,16 @@ function QuickScanDialog({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {product ? (
             <form onSubmit={confirm} className="space-y-3 rounded-xl border p-3">
-              <div>
-                <p className="font-medium">{product.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {product.code} · Stock actual {product.total_stock}{' '}
-                  {product.unit}
-                </p>
+              <div className="flex items-center gap-3">
+                <ProductImage src={product.image_url} alt={product.name} size="lg" />
+                <div>
+                  <p className="font-medium">Producto encontrado</p>
+                  <p className="text-sm">{product.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {product.code} · Stock actual {product.total_stock}{' '}
+                    {product.unit}
+                  </p>
+                </div>
               </div>
               <SelectField
                 label="Depósito"

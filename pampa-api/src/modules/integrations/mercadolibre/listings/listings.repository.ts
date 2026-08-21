@@ -20,14 +20,17 @@ const listingSelect = {
     select: {
       id: true,
       product_id: true,
-      product: { select: { id: true, name: true, code: true } },
+      product: {
+        select: { id: true, name: true, code: true, image_url: true },
+      },
     },
   },
 } satisfies Prisma.mercadolibre_listingSelect;
 
-export type MercadoLibreListingWithLink = Prisma.mercadolibre_listingGetPayload<{
-  select: typeof listingSelect;
-}>;
+export type MercadoLibreListingWithLink =
+  Prisma.mercadolibre_listingGetPayload<{
+    select: typeof listingSelect;
+  }>;
 
 interface ListingFilters {
   search?: string;
@@ -133,7 +136,11 @@ export class MercadoLibreListingRepository {
 
   createLink(companyId: string, listingId: string, productId: string) {
     return this.prisma.mercadolibre_product_link.create({
-      data: { company_id: companyId, listing_id: listingId, product_id: productId },
+      data: {
+        company_id: companyId,
+        listing_id: listingId,
+        product_id: productId,
+      },
     });
   }
 

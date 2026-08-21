@@ -17,6 +17,7 @@ const productSelect = {
   tax_rate: true,
   tracks_stock: true,
   is_active: true,
+  image_url: true,
   created_at: true,
   updated_at: true,
   product_category: {
@@ -231,6 +232,38 @@ export class ProductRepository {
       },
       orderBy: { warehouse: { name: 'asc' } },
     });
+  }
+
+  findImageMeta(companyId: string, id: string) {
+    return this.prisma.product.findFirst({
+      where: { id, company_id: companyId },
+      select: { id: true, image_pathname: true },
+    });
+  }
+
+  async setImage(
+    companyId: string,
+    id: string,
+    data: { imageUrl: string; imagePathname: string },
+  ) {
+    const result = await this.prisma.product.updateMany({
+      where: { id, company_id: companyId },
+      data: { image_url: data.imageUrl, image_pathname: data.imagePathname },
+    });
+    return result.count === 1
+      ? this.prisma.product.findFirst({
+          where: { id, company_id: companyId },
+          select: { id: true, image_url: true },
+        })
+      : null;
+  }
+
+  async clearImage(companyId: string, id: string) {
+    const result = await this.prisma.product.updateMany({
+      where: { id, company_id: companyId },
+      data: { image_url: null, image_pathname: null },
+    });
+    return result.count === 1;
   }
 
   findMovements(companyId: string, productId: string) {

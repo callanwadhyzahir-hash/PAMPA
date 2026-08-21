@@ -32,7 +32,7 @@ export interface DashboardMetrics {
     movement_type: string;
     quantity: string;
     created_at: string;
-    product: { name: string; code: string };
+    product: { name: string; code: string; image_url: string | null };
     warehouse: { name: string; code: string };
   }>;
 }

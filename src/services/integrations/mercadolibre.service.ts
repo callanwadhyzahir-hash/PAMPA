@@ -37,7 +37,7 @@ export interface MercadoLibreConnectResult {
 export interface MercadoLibreListingLink {
   id: string;
   product_id: string;
-  product: { id: string; name: string; code: string };
+  product: { id: string; name: string; code: string; image_url: string | null };
 }
 
 export interface MercadoLibreListing {

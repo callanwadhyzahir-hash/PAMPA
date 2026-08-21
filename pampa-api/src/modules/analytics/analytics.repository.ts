@@ -103,7 +103,7 @@ export class AnalyticsRepository {
           movement_type: true,
           quantity: true,
           created_at: true,
-          product: { select: { name: true, code: true } },
+          product: { select: { name: true, code: true, image_url: true } },
           warehouse: { select: { name: true, code: true } },
         },
         orderBy: { created_at: 'desc' },

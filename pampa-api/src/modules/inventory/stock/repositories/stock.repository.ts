@@ -25,6 +25,7 @@ const stockSelect = {
       unit: true,
       tracks_stock: true,
       is_active: true,
+      image_url: true,
     },
   },
   warehouse: {
@@ -50,7 +51,9 @@ const movementSelect = {
   origin: true,
   observations: true,
   created_at: true,
-  product: { select: { id: true, code: true, name: true, unit: true } },
+  product: {
+    select: { id: true, code: true, name: true, unit: true, image_url: true },
+  },
   warehouse: { select: { id: true, code: true, name: true } },
   user: { select: { id: true, first_name: true, last_name: true } },
 } satisfies Prisma.stock_movementSelect;

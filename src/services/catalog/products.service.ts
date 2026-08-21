@@ -18,6 +18,7 @@ export interface Product {
   tax_rate: string;
   tracks_stock: boolean;
   is_active: boolean;
+  image_url: string | null;
   total_stock: string;
   minimum_stock: string;
   low_stock: boolean;
@@ -118,5 +119,23 @@ export const productsService = {
     return apiFetch<ApiEnvelope<Product>>(`/products/${id}`, {
       method: 'DELETE',
     });
+  },
+  async uploadImage(id: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return (
+      await apiFetch<ApiEnvelope<{ id: string; imageUrl: string }>>(
+        `/products/${id}/image`,
+        { method: 'POST', body: formData },
+      )
+    ).data;
+  },
+  async removeImage(id: string) {
+    return (
+      await apiFetch<ApiEnvelope<{ id: string; imageUrl: null }>>(
+        `/products/${id}/image`,
+        { method: 'DELETE' },
+      )
+    ).data;
   },
 };

@@ -19,6 +19,7 @@ export interface StockRow {
     unit: string;
     tracks_stock: boolean;
     is_active: boolean;
+    image_url: string | null;
   };
   warehouse: {
     id: string;
@@ -38,7 +39,13 @@ export interface StockMovement {
   origin: string;
   observations: string | null;
   created_at: string;
-  product: { id: string; code: string; name: string; unit: string };
+  product: {
+    id: string;
+    code: string;
+    name: string;
+    unit: string;
+    image_url: string | null;
+  };
   warehouse: { id: string; code: string; name: string };
   user: { id: string; first_name: string; last_name: string } | null;
 }

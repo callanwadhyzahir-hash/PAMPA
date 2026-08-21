@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   AlertTriangle,
   Camera,
-  Package,
   Pencil,
   Printer,
   Plus,
@@ -16,7 +15,12 @@ import {
   BarcodeCameraDialog,
   PrintBarcodeLabelsDialog,
 } from '@/components/barcode';
-import { ErrorState, LoadingState } from '@/components/pampa-ui';
+import {
+  ErrorState,
+  LoadingState,
+  ProductImage,
+  ProductImageUpload,
+} from '@/components/pampa-ui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -103,6 +107,11 @@ export default function ProductsPage() {
   const [detail, setDetail] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [printing, setPrinting] = useState<Product | null>(null);
+  const [stagedImageFile, setStagedImageFile] = useState<File | null>(null);
+  // Bumped on every dialog open so ProductImageUpload (keyed by it) remounts
+  // with a clean slate — otherwise a cancelled "new product" would leak its
+  // staged preview/error into the next one.
+  const [dialogSession, setDialogSession] = useState(0);
 
   const canCreate = user?.permissions.includes('products.create') ?? false;
   const canUpdate = user?.permissions.includes('products.update') ?? false;
@@ -142,7 +151,9 @@ export default function ProductsPage() {
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setStagedImageFile(null);
     setError(null);
+    setDialogSession((session) => session + 1);
     setOpen(true);
   }
 
@@ -163,8 +174,28 @@ export default function ProductsPage() {
       tracksStock: product.tracks_stock,
       isActive: product.is_active,
     });
+    setStagedImageFile(null);
     setError(null);
+    setDialogSession((session) => session + 1);
     setOpen(true);
+  }
+
+  function patchProductImage(id: string, imageUrl: string | null) {
+    setProducts((current) =>
+      current.map((product) =>
+        product.id === id ? { ...product, image_url: imageUrl } : product,
+      ),
+    );
+    setEditing((current) =>
+      current && current.id === id
+        ? { ...current, image_url: imageUrl }
+        : current,
+    );
+    setDetail((current) =>
+      current && current.id === id
+        ? { ...current, image_url: imageUrl }
+        : current,
+    );
   }
 
   async function save(event: FormEvent) {
@@ -186,14 +217,26 @@ export default function ProductsPage() {
       isActive: form.isActive,
     };
     try {
-      if (editing) {
-        await productsService.update(editing.id, input);
-      } else {
-        await productsService.create(input);
+      const product = editing
+        ? await productsService.update(editing.id, input)
+        : await productsService.create(input);
+
+      let imageError: string | null = null;
+      if (!editing && stagedImageFile) {
+        // Staged during create: the product didn't exist yet when the image
+        // was picked, so the upload only happens now that it does.
+        try {
+          await productsService.uploadImage(product.id, stagedImageFile);
+        } catch (reason) {
+          imageError = `Producto guardado, pero no se pudo subir la imagen: ${errorMessage(reason)}`;
+        }
       }
+
       setOpen(false);
       setEditing(null);
+      setStagedImageFile(null);
       await load(1);
+      if (imageError) setError(imageError);
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -317,12 +360,13 @@ export default function ProductsPage() {
                       <TableCell>
                         <button
                           type="button"
-                          className="flex items-start gap-2 text-left"
+                          className="flex items-center gap-2 text-left"
                           onClick={() => setDetail(product)}
                         >
-                          <Package
-                            className="mt-0.5 size-4 text-muted-foreground"
-                            aria-hidden
+                          <ProductImage
+                            src={product.image_url}
+                            alt={product.name}
+                            size="sm"
                           />
                           <span>
                             <span className="block font-medium">
@@ -431,6 +475,12 @@ export default function ProductsPage() {
         categories={categories}
         saving={saving}
         setForm={setForm}
+        dialogSession={dialogSession}
+        onFileStaged={setStagedImageFile}
+        onImageUploaded={(imageUrl) =>
+          editing && patchProductImage(editing.id, imageUrl)
+        }
+        onImageRemoved={() => editing && patchProductImage(editing.id, null)}
         onClose={() => {
           setOpen(false);
           setError(null);
@@ -448,6 +498,14 @@ export default function ProductsPage() {
           </DialogHeader>
           {detail ? (
             <dl className="grid grid-cols-2 gap-4 text-sm">
+              <div className="col-span-2 flex justify-center">
+                <ProductImage
+                  src={detail.image_url}
+                  alt={detail.name}
+                  size="xl"
+                  expandable
+                />
+              </div>
               <Detail label="Precio" value={money(detail, detail.sale_price)} />
               <Detail label="Costo" value={money(detail, detail.cost)} />
               <Detail label="Impuesto" value={`${detail.tax_rate}%`} />
@@ -484,6 +542,10 @@ function ProductDialog({
   categories,
   saving,
   setForm,
+  dialogSession,
+  onFileStaged,
+  onImageUploaded,
+  onImageRemoved,
   onClose,
   onSubmit,
 }: {
@@ -493,6 +555,10 @@ function ProductDialog({
   categories: ProductCategory[];
   saving: boolean;
   setForm: React.Dispatch<React.SetStateAction<ProductForm>>;
+  dialogSession: number;
+  onFileStaged: (file: File | null) => void;
+  onImageUploaded: (imageUrl: string) => void;
+  onImageRemoved: () => void;
   onClose: () => void;
   onSubmit: (event: FormEvent) => Promise<void>;
 }) {
@@ -537,6 +603,20 @@ function ProductDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="grid max-h-[65vh] gap-4 overflow-y-auto py-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <span className="mb-1.5 block text-sm font-medium">
+                Imagen del producto
+              </span>
+              <ProductImageUpload
+                key={dialogSession}
+                productId={editing?.id}
+                value={editing?.image_url}
+                productName={form.name || 'Producto'}
+                onFileStaged={onFileStaged}
+                onUploaded={onImageUploaded}
+                onRemoved={onImageRemoved}
+              />
+            </div>
             <Field label="Nombre">
               <Input
                 required

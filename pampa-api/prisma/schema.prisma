@@ -378,6 +378,8 @@ model product {
   tax_rate                  Decimal                     @default(21) @db.Decimal(5, 2)
   tracks_stock              Boolean                     @default(true)
   is_active                 Boolean                     @default(true)
+  image_url                 String?                     @db.VarChar(500)
+  image_pathname            String?                     @db.VarChar(500)
   created_at                DateTime                    @default(now()) @db.Timestamptz(6)
   updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
   product_category          product_category?           @relation(fields: [category_id, company_id], references: [id, company_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_category_company")

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Camera, Plus, Trash2 } from 'lucide-react';
 
 import { BarcodeCameraDialog } from '@/components/barcode';
-import { LoadingState } from '@/components/pampa-ui';
+import { LoadingState, ProductImage, ProductPickerRow } from '@/components/pampa-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -244,16 +244,16 @@ export default function NewSalePage() {
                   <button
                     type="button"
                     key={product.id}
-                    className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-sm last:border-0 hover:bg-muted"
+                    className="flex w-full items-center border-b px-3 py-2 text-left text-sm last:border-0 hover:bg-muted"
                     onClick={() => addProduct(product)}
                   >
-                    <span>
-                      {product.name}{' '}
-                      <span className="text-muted-foreground">
-                        · {product.code}
-                      </span>
-                    </span>
-                    <span>{currency(product.sale_price)}</span>
+                    <ProductPickerRow
+                      imageUrl={product.image_url}
+                      name={product.name}
+                      code={product.code}
+                      barcode={product.barcode}
+                      meta={currency(product.sale_price)}
+                    />
                   </button>
                 ))}
               </div>
@@ -268,11 +268,18 @@ export default function NewSalePage() {
                     key={item.productId}
                     className="grid items-end gap-3 rounded-xl border p-3 sm:grid-cols-[1fr_120px_120px_auto]"
                   >
-                    <div>
-                      <p className="font-medium">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {product.code} · {currency(product.sale_price)}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <ProductImage
+                        src={product.image_url}
+                        alt={product.name}
+                        size="xs"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {product.code} · {currency(product.sale_price)}
+                        </p>
+                      </div>
                     </div>
                     <Field label="Cantidad">
                       <Input

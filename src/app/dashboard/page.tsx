@@ -14,7 +14,7 @@ import {
 import { SectionTitle } from "@/components/dashboard/section-title";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PageContainer } from "@/components/layout/page-container";
-import { ErrorState, LoadingState } from "@/components/pampa-ui";
+import { ErrorState, LoadingState, ProductImage } from "@/components/pampa-ui";
 import { SetupChecklist } from "@/components/onboarding/setup-checklist";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -266,7 +266,16 @@ export default function DashboardPage() {
                   <TableBody>
                     {metrics.recentMovements.map((movement) => (
                       <TableRow key={movement.id}>
-                        <TableCell>{movement.product.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <ProductImage
+                              src={movement.product.image_url}
+                              alt={movement.product.name}
+                              size="xs"
+                            />
+                            {movement.product.name}
+                          </div>
+                        </TableCell>
                         <TableCell>{movement.warehouse.name}</TableCell>
                         <TableCell>
                           {movement.movement_type.replaceAll("_", " ")}

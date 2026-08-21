@@ -51,6 +51,12 @@ type ProductImageProps = {
    * next.config's remotePatterns, e.g. a Mercado Libre listing thumbnail
    * (see the ML integration's "own PAMPA photo vs. ML photo" split). */
   unoptimized?: boolean;
+  /** Fills its container instead of a fixed `size` square — for responsive
+   * grids (e.g. the products catalog cards). Caller's className controls
+   * the container's dimensions (typically `aspect-square w-full`). */
+  fill?: boolean;
+  /** next/image `sizes` attribute, only used with `fill`. */
+  sizes?: string;
 };
 
 function ProductImage({
@@ -61,6 +67,8 @@ function ProductImage({
   priority,
   expandable,
   unoptimized,
+  fill,
+  sizes,
 }: ProductImageProps) {
   const [errored, setErrored] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -90,7 +98,7 @@ function ProductImage({
 
   const frameClasses = cn(
     'relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted text-muted-foreground',
-    SIZE_CLASSES[size],
+    fill ? 'aspect-square w-full' : SIZE_CLASSES[size],
     expandable && !showPlaceholder && 'cursor-zoom-in',
     className,
   );
@@ -108,6 +116,21 @@ function ProductImage({
       >
         {showPlaceholder ? (
           <Package className={ICON_SIZE_CLASSES[size]} aria-hidden="true" />
+        ) : fill ? (
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes={sizes ?? '(min-width: 1280px) 20vw, (min-width: 640px) 33vw, 50vw'}
+            priority={priority}
+            unoptimized={unoptimized}
+            className={cn(
+              'object-cover transition-opacity duration-200',
+              loaded ? 'opacity-100' : 'opacity-0',
+            )}
+            onLoad={() => setLoaded(true)}
+            onError={() => setErrored(true)}
+          />
         ) : (
           <Image
             src={src}

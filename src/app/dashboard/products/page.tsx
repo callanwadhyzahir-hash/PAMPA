@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { motion } from 'framer-motion';
 import {
   AlertTriangle,
   Camera,
@@ -21,7 +22,6 @@ import {
   ProductImage,
   ProductImageUpload,
 } from '@/components/pampa-ui';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -39,14 +39,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { useBarcodeEntry } from '@/hooks/use-barcode-entry';
 import { ApiError } from '@/services/api';
@@ -343,105 +335,112 @@ export default function ProductsPage() {
             />
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        <button
-                          type="button"
-                          className="flex items-center gap-2 text-left"
-                          onClick={() => setDetail(product)}
-                        >
-                          <ProductImage
-                            src={product.image_url}
-                            alt={product.name}
-                            size="sm"
-                          />
-                          <span>
-                            <span className="block font-medium">
-                              {product.name}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              SKU {product.code}
-                              {product.barcode
-                                ? ` · ${product.barcode}`
-                                : ''}
-                            </span>
+              <motion.div
+                className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: { transition: { staggerChildren: 0.03 } },
+                }}
+              >
+                {products.map((product) => (
+                  <motion.div
+                    key={product.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 12 },
+                      visible: { opacity: 1, y: 0 },
+                    }}
+                    whileHover={{ y: -3 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <button
+                      type="button"
+                      className="flex flex-1 flex-col text-left"
+                      onClick={() => setDetail(product)}
+                    >
+                      <div className="relative">
+                        <ProductImage
+                          src={product.image_url}
+                          alt={product.name}
+                          size="xl"
+                          fill
+                          className="rounded-none border-0 border-b"
+                        />
+                        {!product.is_active ? (
+                          <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">
+                            Inactivo
                           </span>
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        {product.product_category?.name ?? 'Sin categoría'}
-                      </TableCell>
-                      <TableCell>{money(product, product.sale_price)}</TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1">
-                          {product.low_stock ? (
-                            <AlertTriangle
-                              className="size-4 text-amber-600"
-                              aria-label="Stock bajo"
-                            />
-                          ) : null}
-                          {product.tracks_stock
-                            ? `${product.total_stock} ${product.unit}`
-                            : 'No controla'}
+                        ) : null}
+                        {product.tracks_stock && product.low_stock ? (
+                          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 shadow-sm">
+                            <AlertTriangle className="size-3" aria-hidden />
+                            Stock bajo
+                          </span>
+                        ) : null}
+                        <span className="absolute bottom-2 right-2 rounded-full bg-background/90 px-2 py-0.5 text-[11px] font-medium text-foreground shadow-sm">
+                          {product.product_type === 'SERVICE'
+                            ? 'Servicio'
+                            : 'Producto'}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={product.is_active ? 'success' : 'danger'}
-                        >
-                          {product.is_active ? 'Activo' : 'Inactivo'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          {canUpdate ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEdit(product)}
-                            >
-                              <Pencil className="size-3.5" aria-hidden />
-                              Editar
-                            </Button>
-                          ) : null}
-                          {product.barcode ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setPrinting(product)}
-                            >
-                              <Printer className="size-3.5" aria-hidden />
-                              Imprimir etiqueta
-                            </Button>
-                          ) : null}
-                          {canDelete || canUpdate ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => void toggleActive(product)}
-                            >
-                              {product.is_active ? 'Desactivar' : 'Activar'}
-                            </Button>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1 p-3">
+                        <h3 className="line-clamp-2 text-sm font-semibold leading-snug">
+                          {product.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          SKU {product.code}
+                          {product.barcode ? ` · ${product.barcode}` : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {product.product_category?.name ?? 'Sin categoría'}
+                        </p>
+                        <div className="mt-auto flex items-end justify-between pt-2">
+                          <span className="text-base font-semibold">
+                            {money(product, product.sale_price)}
+                          </span>
+                          {product.tracks_stock ? (
+                            <span className="text-xs text-muted-foreground">
+                              {product.total_stock} {product.unit}
+                            </span>
                           ) : null}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                    </button>
+                    <div className="flex items-center justify-end gap-1.5 border-t border-border p-2">
+                      {canUpdate ? (
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          aria-label="Editar"
+                          onClick={() => openEdit(product)}
+                        >
+                          <Pencil className="size-3.5" aria-hidden />
+                        </Button>
+                      ) : null}
+                      {product.barcode ? (
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          aria-label="Imprimir etiqueta"
+                          onClick={() => setPrinting(product)}
+                        >
+                          <Printer className="size-3.5" aria-hidden />
+                        </Button>
+                      ) : null}
+                      {canDelete || canUpdate ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => void toggleActive(product)}
+                        >
+                          {product.is_active ? 'Desactivar' : 'Activar'}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
               <div className="flex items-center justify-end gap-2 border-t pt-4">
                 <Button
                   size="sm"

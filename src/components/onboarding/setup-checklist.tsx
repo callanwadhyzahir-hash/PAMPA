@@ -48,6 +48,8 @@ export function SetupChecklist() {
   const visibleItems = items.filter((item) => !item.permission || user?.permissions.includes(item.permission));
   const done = visibleItems.filter((item) => status[item.key]).length;
 
+  if (done === visibleItems.length) return null;
+
   return (
     <Card data-tour="setup-checklist">
       <CardHeader>

@@ -15,6 +15,7 @@ import { SectionTitle } from "@/components/dashboard/section-title";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PageContainer } from "@/components/layout/page-container";
 import { ErrorState, LoadingState } from "@/components/pampa-ui";
+import { SetupChecklist } from "@/components/onboarding/setup-checklist";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -147,7 +148,9 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="space-y-4">
+          <SetupChecklist />
+
+          <section className="space-y-4" data-tour="dashboard-summary">
             <SectionTitle eyebrow="Indicadores" title="Estado operativo del período" />
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard

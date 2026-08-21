@@ -19,7 +19,9 @@ import { useAuthSession } from "@/hooks/use-auth-session";
 import { authService } from "@/services/auth.service";
 import type { AuthUser } from "@/types/auth";
 import type { NavigationItem } from "@/components/layout/sidebar";
-import { ProductTour } from "@/components/onboarding/product-tour";
+import { OnboardingProvider, useOnboarding } from "@/components/onboarding/onboarding-provider";
+import { OnboardingEngine } from "@/components/onboarding/onboarding-engine";
+import { HelpCenter } from "@/components/onboarding/help-center";
 
 interface AuthenticatedShellProps {
   children: ReactNode;
@@ -49,10 +51,22 @@ function CompanyBranchContext({ user }: { user: AuthUser }) {
   );
 }
 
+/** Bridges the mobile nav Sheet's local state to the onboarding engine, so a step targeting
+ * the sidebar can open it on mobile without the engine owning shell layout state. */
+function MobileNavBridge({ setMobileNavOpen }: { setMobileNavOpen: (open: boolean) => void }) {
+  const { registerMobileNavOpener } = useOnboarding();
+  useEffect(() => {
+    registerMobileNavOpener(setMobileNavOpen);
+    return () => registerMobileNavOpener(null);
+  }, [registerMobileNavOpener, setMobileNavOpen]);
+  return null;
+}
+
 export function AuthenticatedShell({ children, navigation }: AuthenticatedShellProps) {
   const router = useRouter();
   const { user, loading } = useAuthSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [helpCenterOpen, setHelpCenterOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -85,7 +99,9 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <OnboardingProvider userId={user.id} permissions={user.permissions}>
+      <MobileNavBridge setMobileNavOpen={setMobileNavOpen} />
+      <div className="flex min-h-screen bg-background">
       <Sidebar items={allowedNavigation} className="hidden lg:flex" />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
@@ -103,7 +119,7 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
           right={
             <>
               <CompanyBranchContext user={user} />
-              <div className="hidden text-right sm:block">
+              <div className="hidden text-right sm:block" data-tour="topbar-user">
                 <p className="text-body-sm font-medium text-foreground">
                   {user.firstName} {user.lastName}
                 </p>
@@ -123,8 +139,9 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => window.dispatchEvent(new Event("pampa:restart-tour"))}
+                onClick={() => setHelpCenterOpen(true)}
                 aria-label="Ver tutorial"
+                data-tour="help-center-trigger"
               >
                 <CircleHelp className="size-4" aria-hidden />
               </Button>
@@ -150,7 +167,9 @@ export function AuthenticatedShell({ children, navigation }: AuthenticatedShellP
         </SheetContent>
       </Sheet>
 
-      <ProductTour userId={user.id} />
-    </div>
+      <OnboardingEngine />
+      <HelpCenter open={helpCenterOpen} onOpenChange={setHelpCenterOpen} />
+      </div>
+    </OnboardingProvider>
   );
 }

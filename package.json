@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@floating-ui/react": "^0.27.20",
     "@hookform/resolvers": "^5.5.7",
     "@supabase/supabase-js": "^2.111.0",
     "barcode-detector": "^3.2.1",

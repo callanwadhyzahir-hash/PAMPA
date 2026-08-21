@@ -121,6 +121,7 @@ model company {
   user                    user[]
   warehouse               warehouse[]
   security_event          security_event[]
+  user_onboarding_progress user_onboarding_progress[]
 
   @@index([created_at], map: "idx_company_created")
 }
@@ -601,6 +602,7 @@ model user {
   platform_admin           platform_admin?
   security_event_actor     security_event[]           @relation("security_event_actor")
   security_event_target    security_event[]           @relation("security_event_target")
+  user_onboarding_progress user_onboarding_progress[]
 
   @@unique([id, company_id], map: "uq_user_id_company")
   @@index([branch_id], map: "idx_user_branch")
@@ -728,4 +730,28 @@ model warehouse {
 
   @@unique([company_id, code], map: "uq_warehouse_company_code")
   @@unique([id, company_id], map: "uq_warehouse_id_company")
+}
+
+/// Per-user, per-tour onboarding progress. One row per (user, tour); a tour
+/// is any entry in the frontend onboarding registry (src/components/onboarding
+/// /onboarding-registry.ts), identified by its stable string id (e.g.
+/// "getting-started"). onboarding_version lets a future content change force
+/// a fresh run without deleting history.
+model user_onboarding_progress {
+  id                 String    @id(map: "pk_user_onboarding_progress") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  company_id         String    @db.Uuid
+  user_id            String    @db.Uuid
+  tour_id            String    @db.VarChar(60)
+  /// 'not_started' | 'in_progress' | 'completed' | 'skipped'
+  status             String    @default("not_started") @db.VarChar(20)
+  current_step       Int       @default(0)
+  onboarding_version Int       @default(1)
+  completed_at       DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+  company            company   @relation(fields: [company_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_onboarding_progress_company")
+  user               user      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_onboarding_progress_user")
+
+  @@unique([user_id, tour_id], map: "uq_user_onboarding_progress_user_tour")
+  @@index([company_id], map: "idx_user_onboarding_progress_company")
 }

@@ -19,6 +19,9 @@ export interface Product {
   tracks_stock: boolean;
   is_active: boolean;
   image_url: string | null;
+  catalog_visible: boolean;
+  catalog_featured: boolean;
+  catalog_position: number;
   total_stock: string;
   minimum_stock: string;
   low_stock: boolean;

@@ -24,6 +24,9 @@ import { MercadoLibreModule } from './modules/integrations/mercadolibre/mercadol
 import { PlatformAdminModule } from './modules/platform-admin/platform-admin.module';
 import { AiModule } from './modules/ai/ai.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { CatalogModule } from './modules/catalog/storefront/catalog.module';
+import { CatalogOrdersModule } from './modules/commercial/catalog-orders/catalog-orders.module';
+import { StorefrontModule } from './modules/storefront/storefront.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -55,6 +58,9 @@ import { HealthController } from './health.controller';
     PlatformAdminModule,
     AiModule,
     OnboardingModule,
+    CatalogModule,
+    CatalogOrdersModule,
+    StorefrontModule,
   ],
   controllers: [HealthController],
 })

@@ -32,28 +32,43 @@ export class SalesService {
   }
 
   create(context: SecurityContext, input: CreateSaleDto) {
-    return this.stockRepository.transaction(async (tx) => {
-      await this.assertResources(
-        tx,
-        context.companyId,
-        input.branchId,
-        input.warehouseId,
-        input.clientId,
-      );
-      const calculation = await this.calculate(
-        tx,
-        context.companyId,
-        input.items,
-      );
-      return this.repository.create(tx, {
-        companyId: context.companyId,
-        branchId: input.branchId,
-        warehouseId: input.warehouseId,
-        clientId: input.clientId,
-        userId: context.userId,
-        notes: this.optional(input.notes),
-        ...calculation,
-      });
+    return this.stockRepository.transaction((tx) =>
+      this.createTx(tx, context, input),
+    );
+  }
+
+  /**
+   * Same DRAFT-sale creation as `create()`, but composable inside a caller's
+   * own transaction (e.g. CatalogOrdersService.accept(), which needs the
+   * client lookup/creation, this sale, and the catalog_order status update
+   * to commit or roll back together). Never call this outside a transaction
+   * opened by `stockRepository.transaction()`.
+   */
+  async createTx(
+    tx: Parameters<SaleRepository['findProducts']>[0],
+    context: SecurityContext,
+    input: CreateSaleDto,
+  ) {
+    await this.assertResources(
+      tx,
+      context.companyId,
+      input.branchId,
+      input.warehouseId,
+      input.clientId,
+    );
+    const calculation = await this.calculate(
+      tx,
+      context.companyId,
+      input.items,
+    );
+    return this.repository.create(tx, {
+      companyId: context.companyId,
+      branchId: input.branchId,
+      warehouseId: input.warehouseId,
+      clientId: input.clientId,
+      userId: context.userId,
+      notes: this.optional(input.notes),
+      ...calculation,
     });
   }
 

@@ -9,5 +9,6 @@ import { ClientRepository } from './repositories/client.repository';
   imports: [SecurityAuditModule],
   controllers: [ClientsController],
   providers: [ClientsService, ClientRepository],
+  exports: [ClientsService, ClientRepository],
 })
 export class ClientsModule {}

@@ -105,6 +105,9 @@ export class ProductsService {
         taxRate: new Prisma.Decimal(input.taxRate ?? 21),
         tracksStock: input.tracksStock ?? true,
         isActive: input.isActive ?? true,
+        catalogVisible: input.catalogVisible,
+        catalogFeatured: input.catalogFeatured,
+        catalogPosition: input.catalogPosition,
       });
       return this.withStockSummary(product);
     } catch (error) {
@@ -158,6 +161,9 @@ export class ProductsService {
             : new Prisma.Decimal(input.taxRate),
         tracksStock: input.tracksStock,
         isActive: input.isActive,
+        catalogVisible: input.catalogVisible,
+        catalogFeatured: input.catalogFeatured,
+        catalogPosition: input.catalogPosition,
       });
       if (!product) throw new NotFoundException('Producto no encontrado.');
       return this.withStockSummary(product);
@@ -170,6 +176,20 @@ export class ProductsService {
     const product = await this.repository.deactivate(context.companyId, id);
     if (!product) throw new NotFoundException('Producto no encontrado.');
     return this.withStockSummary(product);
+  }
+
+  async setCatalogVisibility(
+    context: SecurityContext,
+    productIds: string[],
+    visible: boolean,
+  ) {
+    const uniqueIds = [...new Set(productIds)];
+    const updated = await this.repository.setCatalogVisibility(
+      context.companyId,
+      uniqueIds,
+      visible,
+    );
+    return { updated };
   }
 
   async findStock(context: SecurityContext, id: string) {

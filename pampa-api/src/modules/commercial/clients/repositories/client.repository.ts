@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../../../database/prisma.service';
+import type { TransactionClient } from '../../../inventory/stock/repositories/stock.repository';
 
 const clientSelect = {
   id: true,
@@ -94,6 +95,56 @@ export class ClientRepository {
         ],
       },
       select: { id: true, code: true, tax_id: true },
+    });
+  }
+
+  findByPhoneOrEmail(companyId: string, phone?: string, email?: string) {
+    if (!phone && !email) return Promise.resolve(null);
+    return this.prisma.client.findFirst({
+      where: {
+        company_id: companyId,
+        is_active: true,
+        OR: [
+          ...(phone ? [{ phone }, { mobile: phone }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      },
+      select: clientSelect,
+    });
+  }
+
+  countByCompany(companyId: string) {
+    return this.prisma.client.count({ where: { company_id: companyId } });
+  }
+
+  findByPhoneOrEmailTx(
+    tx: TransactionClient,
+    companyId: string,
+    phone?: string,
+    email?: string,
+  ) {
+    if (!phone && !email) return Promise.resolve(null);
+    return tx.client.findFirst({
+      where: {
+        company_id: companyId,
+        is_active: true,
+        OR: [
+          ...(phone ? [{ phone }, { mobile: phone }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      },
+      select: clientSelect,
+    });
+  }
+
+  createTx(
+    tx: TransactionClient,
+    companyId: string,
+    data: Omit<Prisma.clientUncheckedCreateInput, 'company_id'>,
+  ) {
+    return tx.client.create({
+      data: { ...data, company_id: companyId },
+      select: clientSelect,
     });
   }
 

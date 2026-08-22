@@ -76,7 +76,10 @@ import { EmailVerificationNotifierService } from './email-verification/email-ver
   ],
   controllers: [AuthController],
   // Exported so UsersModule can trigger verification for admin-created users
-  // through the same service RegistrationService already uses.
-  exports: [EmailVerificationService],
+  // through the same service RegistrationService already uses. RateLimitService
+  // is exported for the same reason other modules with public endpoints
+  // (e.g. StorefrontModule) need it — one shared bucket implementation, not a
+  // per-module reimplementation.
+  exports: [EmailVerificationService, RateLimitService],
 })
 export class AuthModule {}

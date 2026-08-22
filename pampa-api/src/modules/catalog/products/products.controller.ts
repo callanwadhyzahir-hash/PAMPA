@@ -24,9 +24,11 @@ import { RequirePermissions } from '../../auth/decorators/require-permissions.de
 import type { SecurityContext } from '../../auth/types/security-context';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
+import { SetCatalogVisibilityDto } from './dto/set-catalog-visibility.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PRODUCT_PERMISSIONS } from './product.permissions';
 import { ProductsService } from './products.service';
+import { CATALOG_PERMISSIONS } from '../storefront/catalog.permissions';
 
 @ApiTags('Products')
 @ApiCookieAuth('pampa_access')
@@ -62,6 +64,25 @@ export class ProductsController {
   @RequirePermissions(PRODUCT_PERMISSIONS.create)
   generateBarcode(@CurrentSecurityContext() context: SecurityContext) {
     return this.service.generateBarcode(context);
+  }
+
+  @Patch('catalog-visibility')
+  @RequirePermissions(CATALOG_PERMISSIONS.manage)
+  async setCatalogVisibility(
+    @CurrentSecurityContext() context: SecurityContext,
+    @Body() input: SetCatalogVisibilityDto,
+  ) {
+    const result = await this.service.setCatalogVisibility(
+      context,
+      input.productIds,
+      input.visible,
+    );
+    await this.record(
+      context,
+      input.visible ? 'PRODUCT_CATALOG_PUBLISHED' : 'PRODUCT_CATALOG_HIDDEN',
+      input.productIds.join(','),
+    );
+    return result;
   }
 
   @Get(':id/stock')

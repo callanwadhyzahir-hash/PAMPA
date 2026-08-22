@@ -18,6 +18,9 @@ const productSelect = {
   tracks_stock: true,
   is_active: true,
   image_url: true,
+  catalog_visible: true,
+  catalog_featured: true,
+  catalog_position: true,
   created_at: true,
   updated_at: true,
   product_category: {
@@ -150,6 +153,9 @@ export class ProductRepository {
       taxRate: Prisma.Decimal;
       tracksStock: boolean;
       isActive: boolean;
+      catalogVisible?: boolean;
+      catalogFeatured?: boolean;
+      catalogPosition?: number;
     },
   ) {
     return this.prisma.product.create({
@@ -167,6 +173,9 @@ export class ProductRepository {
         tax_rate: data.taxRate,
         tracks_stock: data.tracksStock,
         is_active: data.isActive,
+        catalog_visible: data.catalogVisible ?? false,
+        catalog_featured: data.catalogFeatured ?? false,
+        catalog_position: data.catalogPosition ?? 0,
       },
       select: productSelect,
     });
@@ -188,6 +197,9 @@ export class ProductRepository {
       taxRate?: Prisma.Decimal;
       tracksStock?: boolean;
       isActive?: boolean;
+      catalogVisible?: boolean;
+      catalogFeatured?: boolean;
+      catalogPosition?: number;
     },
   ) {
     const result = await this.prisma.product.updateMany({
@@ -205,6 +217,9 @@ export class ProductRepository {
         tax_rate: data.taxRate,
         tracks_stock: data.tracksStock,
         is_active: data.isActive,
+        catalog_visible: data.catalogVisible,
+        catalog_featured: data.catalogFeatured,
+        catalog_position: data.catalogPosition,
       },
     });
     return result.count === 1 ? this.findById(companyId, id) : null;
@@ -212,6 +227,18 @@ export class ProductRepository {
 
   deactivate(companyId: string, id: string) {
     return this.update(companyId, id, { isActive: false });
+  }
+
+  async setCatalogVisibility(
+    companyId: string,
+    ids: string[],
+    visible: boolean,
+  ) {
+    const result = await this.prisma.product.updateMany({
+      where: { id: { in: ids }, company_id: companyId },
+      data: { catalog_visible: visible },
+    });
+    return result.count;
   }
 
   findStock(companyId: string, productId: string) {

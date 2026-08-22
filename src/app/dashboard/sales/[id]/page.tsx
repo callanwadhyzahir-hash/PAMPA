@@ -387,9 +387,14 @@ function InvoiceView({
     : 'Consumidor final';
   const clientTaxId = snapshotText(invoice.client_snapshot, 'tax_id');
   return (
-    <section className="print-document rounded-xl border bg-white p-6">
+    // Always renders as light-paper/dark-ink, independent of the app's
+    // dark/light theme toggle — this is a printable receipt (see "Imprimir"
+    // and the print:hidden buttons below), so it pins its own text colors
+    // instead of the theme's semantic tokens, which are calibrated for the
+    // dark background and turn near-invisible on this forced white card.
+    <section className="print-document rounded-xl border bg-white p-6 text-gray-900">
       {isSimulated ? (
-        <div className="mb-4 rounded-lg border border-danger bg-red-50 p-3 text-center text-sm font-semibold text-danger">
+        <div className="mb-4 rounded-lg border border-destructive bg-red-50 p-3 text-center text-sm font-semibold text-destructive">
           NO VÁLIDA FISCALMENTE — MODO SIMULACIÓN
         </div>
       ) : null}
@@ -402,33 +407,33 @@ function InvoiceView({
       <div className="grid gap-4 py-4 text-sm sm:grid-cols-2">
         <div>
           <p className="font-medium">Empresa</p>
-          <p className="mt-1 text-muted-foreground">{companyName}</p>
+          <p className="mt-1 text-gray-500">{companyName}</p>
           {companyTaxId ? (
-            <p className="text-muted-foreground">CUIT: {companyTaxId}</p>
+            <p className="text-gray-500">CUIT: {companyTaxId}</p>
           ) : null}
           {companyEmail ? (
-            <p className="text-muted-foreground">{companyEmail}</p>
+            <p className="text-gray-500">{companyEmail}</p>
           ) : null}
           {companyPhone ? (
-            <p className="text-muted-foreground">{companyPhone}</p>
+            <p className="text-gray-500">{companyPhone}</p>
           ) : null}
         </div>
         <div>
           <p className="font-medium">Cliente</p>
-          <p className="mt-1 text-muted-foreground">{clientName}</p>
+          <p className="mt-1 text-gray-500">{clientName}</p>
           {clientTaxId ? (
-            <p className="text-muted-foreground">
+            <p className="text-gray-500">
               CUIT/documento: {clientTaxId}
             </p>
           ) : null}
         </div>
       </div>
       <dl className="ml-auto grid max-w-sm grid-cols-2 gap-x-6 gap-y-1 border-t pt-4 text-sm">
-        <dt className="text-muted-foreground">Subtotal</dt>
+        <dt className="text-gray-500">Subtotal</dt>
         <dd className="text-right">{currency(sale.subtotal)}</dd>
-        <dt className="text-muted-foreground">Descuentos</dt>
+        <dt className="text-gray-500">Descuentos</dt>
         <dd className="text-right">{currency(sale.discount_total)}</dd>
-        <dt className="text-muted-foreground">Impuestos</dt>
+        <dt className="text-gray-500">Impuestos</dt>
         <dd className="text-right">{currency(sale.tax_total)}</dd>
         <dt className="pt-2 text-base font-semibold">Total</dt>
         <dd className="pt-2 text-right text-base font-semibold">
@@ -446,13 +451,13 @@ function InvoiceView({
           ) : null}
         </div>
         <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-          <dt className="text-muted-foreground">CAE</dt>
+          <dt className="text-gray-500">CAE</dt>
           <dd>{invoice.cae ?? '—'}</dd>
-          <dt className="text-muted-foreground">Vencimiento CAE</dt>
+          <dt className="text-gray-500">Vencimiento CAE</dt>
           <dd>{fiscalDate(invoice.cae_expiration)}</dd>
-          <dt className="text-muted-foreground">Punto de venta</dt>
+          <dt className="text-gray-500">Punto de venta</dt>
           <dd>{invoice.point_of_sale ?? '—'}</dd>
-          <dt className="text-muted-foreground">Comprobante fiscal</dt>
+          <dt className="text-gray-500">Comprobante fiscal</dt>
           <dd>
             {invoice.voucher_type_code && invoice.invoice_number
               ? `${invoice.voucher_type_code}-${invoice.invoice_number}`
@@ -461,7 +466,7 @@ function InvoiceView({
         </dl>
         {invoice.fiscal_status === 'REJECTED' ||
         invoice.fiscal_status === 'ERROR' ? (
-          <p className="mt-3 rounded-lg border border-danger bg-red-50 p-2 text-sm text-danger">
+          <p className="mt-3 rounded-lg border border-destructive bg-red-50 p-2 text-sm text-destructive">
             {invoice.arca_error_message ?? 'La fiscalización no pudo completarse.'}
           </p>
         ) : null}

@@ -116,14 +116,20 @@ export class StorefrontService {
         throw new ConflictException({
           message:
             'Algunos productos de tu pedido ya no están disponibles. Revisá tu carrito.',
-          details: { code: 'ITEMS_UNAVAILABLE', unavailableProductIds: missing },
+          details: {
+            code: 'ITEMS_UNAVAILABLE',
+            unavailableProductIds: missing,
+          },
         });
       }
 
       const items = input.items.map((input, index) => {
         const product = byId.get(input.productId)!;
         const quantity = new Prisma.Decimal(input.quantity);
-        const unitPrice = product.sale_price;
+        const unitPrice = this.taxInclusivePrice(
+          product.sale_price,
+          product.tax_rate,
+        );
         const subtotal = unitPrice
           .mul(quantity)
           .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
@@ -183,6 +189,7 @@ export class StorefrontService {
       name: string;
       description: string | null;
       sale_price: Prisma.Decimal;
+      tax_rate: Prisma.Decimal;
       unit: string;
       tracks_stock: boolean;
       image_url: string | null;
@@ -205,10 +212,23 @@ export class StorefrontService {
       imageUrl: product.image_url,
       featured: product.catalog_featured,
       category: product.product_category,
-      price: showPrices ? product.sale_price : null,
+      // Final price the customer actually pays (IVA included) — never the
+      // net sale_price. The confirmed Sale is still the authoritative total
+      // (it recomputes from product.sale_price + tax_rate independently),
+      // this is only meant to match it so nobody sees a lower number here
+      // than what the merchant charges once they accept the order.
+      price: showPrices
+        ? this.taxInclusivePrice(product.sale_price, product.tax_rate)
+        : null,
       availability: showAvailability ? availability : null,
       inStock: availability !== 'OUT_OF_STOCK',
     };
+  }
+
+  private taxInclusivePrice(price: Prisma.Decimal, taxRate: Prisma.Decimal) {
+    return price
+      .mul(taxRate.div(100).plus(1))
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
   }
 
   private availability(product: {

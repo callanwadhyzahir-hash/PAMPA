@@ -17,6 +17,7 @@ function publicProductSelect(warehouseId: string) {
     name: true,
     description: true,
     sale_price: true,
+    tax_rate: true,
     unit: true,
     tracks_stock: true,
     image_url: true,
@@ -107,6 +108,7 @@ export class StorefrontRepository {
         code: true,
         name: true,
         sale_price: true,
+        tax_rate: true,
         unit: true,
       },
     });

@@ -64,6 +64,7 @@ describe('StorefrontService', () => {
       name: 'Producto',
       description: null,
       sale_price: new Prisma.Decimal(100),
+      tax_rate: new Prisma.Decimal(21),
       unit: 'UNIT',
       tracks_stock: true,
       image_url: null,
@@ -72,6 +73,24 @@ describe('StorefrontService', () => {
       product_category: null,
       stock: [],
       ...overrides,
+    });
+
+    it('quotes the tax-inclusive price, not the bare net sale_price', async () => {
+      repository.findProduct.mockResolvedValue(
+        buildProduct({
+          sale_price: new Prisma.Decimal(1500),
+          tax_rate: new Prisma.Decimal(21),
+          stock: [
+            {
+              quantity: new Prisma.Decimal(10),
+              minimum_quantity: new Prisma.Decimal(0),
+            },
+          ],
+        }),
+      );
+      const result = await service.getProduct('mi-negocio', 'product-a');
+      // 1500 net + 21% IVA = 1815, matching what confirming the sale charges.
+      expect(result.price).toEqual(new Prisma.Decimal(1815));
     });
 
     it('marks out of stock when quantity is zero or less', async () => {
@@ -166,6 +185,7 @@ describe('StorefrontService', () => {
           code: 'P-1',
           name: 'Producto',
           sale_price: new Prisma.Decimal(999),
+          tax_rate: new Prisma.Decimal(0),
           unit: 'UNIT',
         },
       ]);
@@ -185,6 +205,38 @@ describe('StorefrontService', () => {
         expect.objectContaining({
           total: new Prisma.Decimal(1998),
           subtotal: new Prisma.Decimal(1998),
+        }),
+      );
+    });
+
+    it('includes tax in the order total so it matches what confirming the sale will charge', async () => {
+      repository.findOrderableProducts.mockResolvedValue([
+        {
+          id: 'product-a',
+          code: 'P-1',
+          name: 'Producto',
+          sale_price: new Prisma.Decimal(1500),
+          tax_rate: new Prisma.Decimal(21),
+          unit: 'UNIT',
+        },
+      ]);
+      repository.createOrder.mockResolvedValue({
+        id: 'order-a',
+        order_number: BigInt(1),
+        status: 'PENDING',
+        total: new Prisma.Decimal(3630),
+        created_at: new Date(),
+        catalog_order_item: [],
+      });
+
+      await service.submitOrder('mi-negocio', submission, '1.2.3.4');
+
+      // 1500 net * 1.21 = 1815 per unit, x2 units = 3630 — not the bare 3000.
+      expect(repository.createOrder).toHaveBeenCalledWith(
+        tx,
+        expect.objectContaining({
+          total: new Prisma.Decimal(3630),
+          subtotal: new Prisma.Decimal(3630),
         }),
       );
     });

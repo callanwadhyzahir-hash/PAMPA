@@ -21,6 +21,8 @@ export interface Tour {
   title: string;
   /** Permission required to see any step of this tour at all. */
   permission?: string;
+  /** Route that auto-starts this tour the first time a user lands on it (if never seen and no other tour is active). */
+  autoStartRoute?: string;
   steps: TourStep[];
 }
 

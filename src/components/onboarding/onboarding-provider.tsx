@@ -1,10 +1,14 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 
 import { onboardingRegistry, type Tour, type TourStep } from "./onboarding-registry";
 import { useOnboardingStorage } from "./onboarding-storage";
 import "./tours/getting-started";
+import "./tours/public-catalog";
+import "./tours/branch-city";
+import "./tours/product-variants";
 
 interface OnboardingContextValue {
   tours: Tour[];
@@ -42,8 +46,14 @@ export function OnboardingProvider({
   const [stepIndex, setStepIndex] = useState(0);
   const mobileNavOpener = useRef<((open: boolean) => void) | null>(null);
   const autoStarted = useRef(false);
+  const pathname = usePathname();
 
-  const tours = useMemo(() => Object.values(onboardingRegistry), []);
+  // Only tours this user is actually allowed to see — a tour gated behind a permission the
+  // user lacks never appears in the Help Center and never auto-starts for them.
+  const tours = useMemo(
+    () => Object.values(onboardingRegistry).filter((tour) => !tour.permission || permissions.includes(tour.permission)),
+    [permissions],
+  );
 
   const statusFor = useCallback(
     (tourId: string) => progressByTour[tourId]?.status ?? "not_started",
@@ -52,12 +62,14 @@ export function OnboardingProvider({
 
   const startTour = useCallback(
     (tourId: string) => {
-      if (!onboardingRegistry[tourId]) return;
+      const tour = onboardingRegistry[tourId];
+      if (!tour) return;
+      if (tour.permission && !permissions.includes(tour.permission)) return;
       setActiveTourId(tourId);
       setStepIndex(0);
       updateProgress(tourId, "in_progress", 0);
     },
-    [updateProgress],
+    [updateProgress, permissions],
   );
 
   const activeTour = activeTourId ? (onboardingRegistry[activeTourId] ?? null) : null;
@@ -99,16 +111,23 @@ export function OnboardingProvider({
   }, []);
 
   useEffect(() => {
-    if (!loaded || autoStarted.current) return;
-    autoStarted.current = true;
-    // A missing record means this user has never seen "getting-started" — auto-start it once
-    // progress has loaded. Once it's completed or skipped, never force it again (existing
-    // users don't get re-onboarded invasively just because a new PAMPA version shipped).
-    if (!progressByTour["getting-started"]) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      startTour("getting-started");
+    if (!loaded || activeTourId) return;
+    if (!autoStarted.current) {
+      autoStarted.current = true;
+      // A missing record means this user has never seen "getting-started" — auto-start it once
+      // progress has loaded. Once it's completed or skipped, never force it again (existing
+      // users don't get re-onboarded invasively just because a new PAMPA version shipped).
+      if (!progressByTour["getting-started"]) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        startTour("getting-started");
+        return;
+      }
     }
-  }, [loaded, progressByTour, startTour]);
+    // Feature tours opt into a route: the first time a user (who never saw that tour) lands
+    // on it, it starts on its own — same "never force it again once resolved" rule as above.
+    const contextual = tours.find((tour) => tour.autoStartRoute === pathname && !progressByTour[tour.id]);
+    if (contextual) startTour(contextual.id);
+  }, [loaded, progressByTour, startTour, tours, pathname, activeTourId]);
 
   const value: OnboardingContextValue = {
     tours,

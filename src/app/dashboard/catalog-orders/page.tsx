@@ -88,7 +88,7 @@ export default function CatalogOrdersPage() {
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2" data-tour="catalog-orders-filters">
         {[
           { value: '', label: 'Todos' },
           { value: 'PENDING', label: 'Nuevos' },

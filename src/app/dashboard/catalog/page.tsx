@@ -109,11 +109,13 @@ export default function CatalogSettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [statusResult, branchResult, warehouseResult] = await Promise.all([
-        catalogService.getOwn(),
-        branchesService.list(),
-        warehousesService.list(),
-      ]);
+      const statusResult = await catalogService.getOwn();
+      // Only a manager can change the branch/warehouse selects, so only fetch the lists
+      // for them — a catalog.read-only role (e.g. Vendedor) commonly lacks branches.read
+      // and warehouses.read, and those 403s shouldn't take down the whole read-only view.
+      const [branchResult, warehouseResult] = canManage
+        ? await Promise.all([branchesService.list(), warehousesService.list()])
+        : [[], []];
       setStatus(statusResult);
       setBranches(branchResult);
       setWarehouses(warehouseResult);
@@ -162,7 +164,7 @@ export default function CatalogSettingsPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -343,7 +345,7 @@ export default function CatalogSettingsPage() {
                 disabled={!canManage}
               />
             </label>
-            <label className="space-y-1.5 text-sm font-medium sm:col-span-2">
+            <label className="space-y-1.5 text-sm font-medium sm:col-span-2" data-tour="catalog-slug-field">
               <span>Enlace público</span>
               <div className="flex items-center gap-1">
                 <span className="shrink-0 text-sm text-muted-foreground">/c/</span>
@@ -386,7 +388,7 @@ export default function CatalogSettingsPage() {
                 ))}
               </select>
             </label>
-            <label className="space-y-1.5 text-sm font-medium">
+            <label className="space-y-1.5 text-sm font-medium" data-tour="catalog-warehouse-field">
               <span>Depósito</span>
               <select
                 required
@@ -428,7 +430,7 @@ export default function CatalogSettingsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="catalog-visibility">
           <CardHeader>
             <CardTitle>Visibilidad</CardTitle>
           </CardHeader>
@@ -460,13 +462,13 @@ export default function CatalogSettingsPage() {
         {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
 
         {canManage ? (
-          <Button type="submit" variant="lime" disabled={saving}>
+          <Button type="submit" variant="lime" disabled={saving} data-tour="catalog-save-button">
             {saving ? 'Guardando…' : 'Guardar catálogo'}
           </Button>
         ) : null}
       </form>
 
-      <Card>
+      <Card data-tour="catalog-products-list">
         <CardHeader>
           <CardTitle>Productos publicados</CardTitle>
           <CardDescription>Elegí qué productos se muestran en el catálogo público.</CardDescription>

@@ -43,6 +43,11 @@ const productSelect = {
       },
     },
   },
+  product_variant: {
+    where: { is_active: true },
+    select: { id: true, label: true, sku_suffix: true, sort_order: true },
+    orderBy: { sort_order: 'asc' },
+  },
 } satisfies Prisma.productSelect;
 
 interface ProductFilters {

@@ -6,10 +6,15 @@ const productCategorySelect = {
   id: true,
   name: true,
   description: true,
+  attribute_kind: true,
   is_active: true,
   created_at: true,
   updated_at: true,
   _count: { select: { product: true } },
+  product_category_attribute_option: {
+    select: { id: true, label: true, sort_order: true },
+    orderBy: { sort_order: 'asc' as const },
+  },
 } as const;
 
 @Injectable()
@@ -49,7 +54,13 @@ export class ProductCategoryRepository {
 
   create(
     companyId: string,
-    data: { name: string; description?: string; isActive: boolean },
+    data: {
+      name: string;
+      description?: string;
+      isActive: boolean;
+      attributeKind: string;
+      attributeOptions?: string[];
+    },
   ) {
     return this.prisma.product_category.create({
       data: {
@@ -57,6 +68,15 @@ export class ProductCategoryRepository {
         name: data.name,
         description: data.description,
         is_active: data.isActive,
+        attribute_kind: data.attributeKind,
+        product_category_attribute_option: data.attributeOptions?.length
+          ? {
+              create: data.attributeOptions.map((label, index) => ({
+                label,
+                sort_order: index,
+              })),
+            }
+          : undefined,
       },
       select: productCategorySelect,
     });
@@ -65,17 +85,63 @@ export class ProductCategoryRepository {
   async update(
     companyId: string,
     id: string,
-    data: { name?: string; description?: string | null; isActive?: boolean },
+    data: {
+      name?: string;
+      description?: string | null;
+      isActive?: boolean;
+      attributeKind?: string;
+      attributeOptions?: string[];
+    },
   ) {
-    const result = await this.prisma.product_category.updateMany({
-      where: { id, company_id: companyId },
-      data: {
-        name: data.name,
-        description: data.description,
-        is_active: data.isActive,
-      },
-    });
-    return result.count === 1 ? this.findById(companyId, id) : null;
+    const hasScalarChanges =
+      data.name !== undefined ||
+      data.description !== undefined ||
+      data.isActive !== undefined ||
+      data.attributeKind !== undefined;
+
+    if (hasScalarChanges) {
+      // Prisma's `updateMany` reports `count: 0` (not an error) when every
+      // field in `data` resolves to `undefined` — it never touches the
+      // WHERE clause. A caller that only sends `attributeOptions` hits that
+      // case, so the scalar update only runs when something actually changed.
+      const result = await this.prisma.product_category.updateMany({
+        where: { id, company_id: companyId },
+        data: {
+          name: data.name,
+          description: data.description,
+          is_active: data.isActive,
+          attribute_kind: data.attributeKind,
+        },
+      });
+      if (result.count !== 1) return null;
+    } else {
+      const exists = await this.prisma.product_category.findFirst({
+        where: { id, company_id: companyId },
+        select: { id: true },
+      });
+      if (!exists) return null;
+    }
+
+    if (data.attributeOptions !== undefined) {
+      await this.prisma.$transaction([
+        this.prisma.product_category_attribute_option.deleteMany({
+          where: { category_id: id },
+        }),
+        ...(data.attributeOptions.length
+          ? [
+              this.prisma.product_category_attribute_option.createMany({
+                data: data.attributeOptions.map((label, index) => ({
+                  category_id: id,
+                  label,
+                  sort_order: index,
+                })),
+              }),
+            ]
+          : []),
+      ]);
+    }
+
+    return this.findById(companyId, id);
   }
 
   async deactivateOrDelete(companyId: string, id: string) {

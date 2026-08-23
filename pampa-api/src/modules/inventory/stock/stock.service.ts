@@ -20,7 +20,12 @@ export class StockService {
 
   findAll(
     context: SecurityContext,
-    filters?: { productId?: string; warehouseId?: string; lowStock?: boolean },
+    filters?: {
+      productId?: string;
+      variantId?: string;
+      warehouseId?: string;
+      lowStock?: boolean;
+    },
   ) {
     return this.repository.findAll(context.companyId, filters);
   }
@@ -31,7 +36,7 @@ export class StockService {
 
   findMovements(
     context: SecurityContext,
-    filters?: { productId?: string; warehouseId?: string },
+    filters?: { productId?: string; variantId?: string; warehouseId?: string },
   ) {
     return this.repository.findMovements(context.companyId, filters);
   }
@@ -53,18 +58,21 @@ export class StockService {
         context.companyId,
         input.productId,
         input.warehouseId,
+        input.variantId,
       );
       await this.repository.lockStock(
         tx,
         context.companyId,
         input.warehouseId,
         input.productId,
+        input.variantId,
       );
       const current = await this.repository.upsertStock(
         tx,
         context.companyId,
         input.warehouseId,
         input.productId,
+        input.variantId,
       );
       const nextQuantity = inbound
         ? current.quantity.plus(quantity)
@@ -82,6 +90,7 @@ export class StockService {
       const movement = await this.repository.createMovement(tx, {
         companyId: context.companyId,
         productId: input.productId,
+        variantId: input.variantId,
         warehouseId: input.warehouseId,
         movementType: input.movementType,
         quantity,
@@ -108,12 +117,14 @@ export class StockService {
         context.companyId,
         input.productId,
         input.sourceWarehouseId,
+        input.variantId,
       );
       await this.assertResources(
         tx,
         context.companyId,
         input.productId,
         input.targetWarehouseId,
+        input.variantId,
       );
       const warehouseIds = [
         input.sourceWarehouseId,
@@ -125,6 +136,7 @@ export class StockService {
           context.companyId,
           warehouseId,
           input.productId,
+          input.variantId,
         );
       }
       const source = await this.repository.upsertStock(
@@ -132,12 +144,14 @@ export class StockService {
         context.companyId,
         input.sourceWarehouseId,
         input.productId,
+        input.variantId,
       );
       const target = await this.repository.upsertStock(
         tx,
         context.companyId,
         input.targetWarehouseId,
         input.productId,
+        input.variantId,
       );
       const sourceQuantity = source.quantity.minus(quantity);
       if (sourceQuantity.isNegative()) {
@@ -157,6 +171,7 @@ export class StockService {
       const movementOut = await this.repository.createMovement(tx, {
         companyId: context.companyId,
         productId: input.productId,
+        variantId: input.variantId,
         warehouseId: input.sourceWarehouseId,
         movementType: 'TRANSFER_OUT',
         quantity,
@@ -168,6 +183,7 @@ export class StockService {
       const movementIn = await this.repository.createMovement(tx, {
         companyId: context.companyId,
         productId: input.productId,
+        variantId: input.variantId,
         warehouseId: input.targetWarehouseId,
         movementType: 'TRANSFER_IN',
         quantity,
@@ -185,6 +201,7 @@ export class StockService {
     companyId: string,
     productId: string,
     warehouseId: string,
+    variantId?: string,
   ) {
     const [product, warehouse] = await Promise.all([
       this.repository.findActiveProduct(tx, companyId, productId),
@@ -196,6 +213,16 @@ export class StockService {
       );
     }
     if (!warehouse) throw new NotFoundException('Depósito no encontrado.');
+
+    if (variantId) {
+      const variant = await this.repository.findActiveVariant(
+        tx,
+        companyId,
+        productId,
+        variantId,
+      );
+      if (!variant) throw new NotFoundException('Variante no encontrada.');
+    }
   }
 
   private normalizeReason(reason: string) {

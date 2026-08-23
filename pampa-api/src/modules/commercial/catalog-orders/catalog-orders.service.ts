@@ -80,6 +80,7 @@ export class CatalogOrdersService {
         notes: `Generada desde pedido de catálogo PED-${order.order_number.toString().padStart(8, '0')}.`,
         items: order.catalog_order_item.map((item) => ({
           productId: item.product_id,
+          variantId: item.variant_id ?? undefined,
           quantity: item.quantity.toNumber(),
         })),
       });

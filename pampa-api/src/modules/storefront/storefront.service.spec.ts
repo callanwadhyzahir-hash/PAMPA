@@ -72,6 +72,7 @@ describe('StorefrontService', () => {
       catalog_position: 0,
       product_category: null,
       stock: [],
+      product_variant: [],
       ...overrides,
     });
 
@@ -84,6 +85,7 @@ describe('StorefrontService', () => {
             {
               quantity: new Prisma.Decimal(10),
               minimum_quantity: new Prisma.Decimal(0),
+              variant_id: null,
             },
           ],
         }),
@@ -100,6 +102,7 @@ describe('StorefrontService', () => {
             {
               quantity: new Prisma.Decimal(0),
               minimum_quantity: new Prisma.Decimal(0),
+              variant_id: null,
             },
           ],
         }),
@@ -116,6 +119,7 @@ describe('StorefrontService', () => {
             {
               quantity: new Prisma.Decimal(2),
               minimum_quantity: new Prisma.Decimal(5),
+              variant_id: null,
             },
           ],
         }),
@@ -131,6 +135,7 @@ describe('StorefrontService', () => {
             {
               quantity: new Prisma.Decimal(500),
               minimum_quantity: new Prisma.Decimal(0),
+              variant_id: null,
             },
           ],
         }),
@@ -161,6 +166,7 @@ describe('StorefrontService', () => {
             {
               quantity: new Prisma.Decimal(1),
               minimum_quantity: new Prisma.Decimal(0),
+              variant_id: null,
             },
           ],
         }),

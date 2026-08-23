@@ -1,9 +1,20 @@
 import { Type } from 'class-transformer';
-import { IsNumber, IsString, IsUUID, Length, Min } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Min,
+} from 'class-validator';
 
 export class StockTransferDto {
   @IsUUID()
   productId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  variantId?: string;
 
   @IsUUID()
   sourceWarehouseId!: string;

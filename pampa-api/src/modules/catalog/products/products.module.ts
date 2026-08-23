@@ -8,16 +8,25 @@ import { ProductImagesService } from './images/product-images.service';
 import { ProductsController } from './products.controller';
 import { ProductRepository } from './repositories/product.repository';
 import { ProductsService } from './products.service';
+import { ProductVariantsController } from './variants/product-variants.controller';
+import { ProductVariantsService } from './variants/product-variants.service';
+import { ProductVariantRepository } from './variants/repositories/product-variant.repository';
 
 @Module({
   imports: [SecurityAuditModule],
-  controllers: [ProductsController, ProductImagesController],
+  controllers: [
+    ProductsController,
+    ProductImagesController,
+    ProductVariantsController,
+  ],
   providers: [
     ProductsService,
     ProductRepository,
     ProductImagesService,
     ProductImageStorageService,
     ProductImageProcessorService,
+    ProductVariantsService,
+    ProductVariantRepository,
   ],
   exports: [ProductsService],
 })

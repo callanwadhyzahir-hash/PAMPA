@@ -60,8 +60,10 @@ const orderDetailSelect = {
     select: {
       id: true,
       product_id: true,
+      variant_id: true,
       product_name: true,
       product_code: true,
+      variant_label: true,
       quantity: true,
       unit_price: true,
       subtotal: true,

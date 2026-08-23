@@ -41,6 +41,8 @@ export const saleDetailSelect = {
     select: {
       id: true,
       product_id: true,
+      variant_id: true,
+      variant_label: true,
       line_number: true,
       product_name: true,
       product_code: true,
@@ -140,6 +142,10 @@ export class SaleRepository {
         sale_price: true,
         tax_rate: true,
         tracks_stock: true,
+        product_variant: {
+          where: { is_active: true },
+          select: { id: true, label: true },
+        },
       },
     });
   }
@@ -159,6 +165,8 @@ export class SaleRepository {
       total: Prisma.Decimal;
       items: Array<{
         productId: string;
+        variantId?: string;
+        variantLabel?: string;
         lineNumber: number;
         productName: string;
         productCode: string;
@@ -189,6 +197,8 @@ export class SaleRepository {
             line_number: item.lineNumber,
             product_name: item.productName,
             product_code: item.productCode,
+            variant_id: item.variantId,
+            variant_label: item.variantLabel,
             quantity: item.quantity,
             unit_price: item.unitPrice,
             tax_rate: item.taxRate,
@@ -224,6 +234,7 @@ export class SaleRepository {
       id: string;
       productName: string;
       productCode: string;
+      variantLabel?: string;
       unitPrice: Prisma.Decimal;
       taxRate: Prisma.Decimal;
       discountPercent: Prisma.Decimal;
@@ -238,6 +249,7 @@ export class SaleRepository {
           data: {
             product_name: item.productName,
             product_code: item.productCode,
+            variant_label: item.variantLabel,
             unit_price: item.unitPrice,
             tax_rate: item.taxRate,
             discount_percent: item.discountPercent,

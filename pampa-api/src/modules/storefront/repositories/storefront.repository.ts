@@ -26,8 +26,12 @@ function publicProductSelect(warehouseId: string) {
     product_category: { select: { id: true, name: true } },
     stock: {
       where: { warehouse_id: warehouseId },
-      select: { quantity: true, minimum_quantity: true },
-      take: 1,
+      select: { quantity: true, minimum_quantity: true, variant_id: true },
+    },
+    product_variant: {
+      where: { is_active: true },
+      select: { id: true, label: true, sort_order: true },
+      orderBy: { sort_order: 'asc' },
     },
   } satisfies Prisma.productSelect;
 }
@@ -110,6 +114,10 @@ export class StorefrontRepository {
         sale_price: true,
         tax_rate: true,
         unit: true,
+        product_variant: {
+          where: { is_active: true },
+          select: { id: true, label: true },
+        },
       },
     });
   }
@@ -128,6 +136,8 @@ export class StorefrontRepository {
       total: Prisma.Decimal;
       items: Array<{
         productId: string;
+        variantId?: string;
+        variantLabel?: string;
         lineNumber: number;
         productName: string;
         productCode: string;
@@ -153,6 +163,8 @@ export class StorefrontRepository {
             line_number: item.lineNumber,
             product_name: item.productName,
             product_code: item.productCode,
+            variant_id: item.variantId,
+            variant_label: item.variantLabel,
             quantity: item.quantity,
             unit_price: item.unitPrice,
             subtotal: item.subtotal,
@@ -177,6 +189,7 @@ export class StorefrontRepository {
         catalog_order_item: {
           select: {
             product_name: true,
+            variant_label: true,
             quantity: true,
             unit_price: true,
             subtotal: true,

@@ -20,10 +20,12 @@ const category = {
   id: 'category-a',
   name: 'Herramientas eléctricas',
   description: null,
+  attribute_kind: 'NONE',
   is_active: true,
   created_at: new Date(),
   updated_at: new Date(),
   _count: { product: 0 },
+  product_category_attribute_option: [],
 };
 
 describe('ProductCategoriesService', () => {
@@ -77,6 +79,8 @@ describe('ProductCategoriesService', () => {
       name: 'Herramientas eléctricas',
       description: 'Uso profesional',
       isActive: true,
+      attributeKind: 'NONE',
+      attributeOptions: undefined,
     });
   });
 

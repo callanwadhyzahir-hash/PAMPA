@@ -35,6 +35,8 @@ export class ProductCategoriesService {
         name,
         description: this.normalizeOptional(input.description),
         isActive: input.isActive ?? true,
+        attributeKind: input.attributeKind ?? 'NONE',
+        attributeOptions: this.normalizeOptions(input.attributeOptions),
       });
     } catch (error) {
       this.mapConstraintError(error);
@@ -59,6 +61,8 @@ export class ProductCategoriesService {
             ? undefined
             : (this.normalizeOptional(input.description) ?? null),
         isActive: input.isActive,
+        attributeKind: input.attributeKind,
+        attributeOptions: this.normalizeOptions(input.attributeOptions),
       });
       if (!category) throw new NotFoundException('Categoría no encontrada.');
       return category;
@@ -85,6 +89,20 @@ export class ProductCategoriesService {
   private normalizeOptional(value?: string) {
     const normalized = value?.trim().replace(/\s+/g, ' ');
     return normalized || undefined;
+  }
+
+  private normalizeOptions(values?: string[]) {
+    if (values === undefined) return undefined;
+    const seen = new Set<string>();
+    const normalized: string[] = [];
+    for (const raw of values) {
+      const value = raw.trim();
+      const key = value.toLocaleLowerCase('es');
+      if (!value || seen.has(key)) continue;
+      seen.add(key);
+      normalized.push(value);
+    }
+    return normalized;
   }
 
   private async assertUnique(

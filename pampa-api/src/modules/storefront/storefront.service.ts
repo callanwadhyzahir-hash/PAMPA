@@ -97,35 +97,56 @@ export class StorefrontService {
       windowMs: ORDER_SUBMIT_WINDOW_MS,
     });
 
-    const uniqueIds = [...new Set(input.items.map((item) => item.productId))];
-    if (uniqueIds.length !== input.items.length) {
+    const uniqueKeys = new Set(
+      input.items.map((item) => `${item.productId}:${item.variantId ?? ''}`),
+    );
+    if (uniqueKeys.size !== input.items.length) {
       throw new ConflictException(
-        'Cada producto debe aparecer una sola vez en el pedido.',
+        'Cada producto (o variante) debe aparecer una sola vez en el pedido.',
       );
     }
+    const uniqueProductIds = [
+      ...new Set(input.items.map((item) => item.productId)),
+    ];
 
     return this.prisma.$transaction(async (tx) => {
       const products = await this.repository.findOrderableProducts(
         tx,
         catalog.company_id,
-        uniqueIds,
+        uniqueProductIds,
       );
       const byId = new Map(products.map((product) => [product.id, product]));
-      const missing = uniqueIds.filter((id) => !byId.has(id));
-      if (missing.length > 0) {
+      const missingProducts = uniqueProductIds.filter((id) => !byId.has(id));
+      const invalidVariantProductIds = input.items
+        .filter((item) => {
+          if (!item.variantId) return false;
+          const product = byId.get(item.productId);
+          if (!product) return false;
+          return !product.product_variant.some(
+            (variant) => variant.id === item.variantId,
+          );
+        })
+        .map((item) => item.productId);
+      const unavailableProductIds = [
+        ...new Set([...missingProducts, ...invalidVariantProductIds]),
+      ];
+      if (unavailableProductIds.length > 0) {
         throw new ConflictException({
           message:
             'Algunos productos de tu pedido ya no están disponibles. Revisá tu carrito.',
           details: {
             code: 'ITEMS_UNAVAILABLE',
-            unavailableProductIds: missing,
+            unavailableProductIds,
           },
         });
       }
 
-      const items = input.items.map((input, index) => {
-        const product = byId.get(input.productId)!;
-        const quantity = new Prisma.Decimal(input.quantity);
+      const items = input.items.map((inputItem, index) => {
+        const product = byId.get(inputItem.productId)!;
+        const variant = inputItem.variantId
+          ? product.product_variant.find((v) => v.id === inputItem.variantId)
+          : undefined;
+        const quantity = new Prisma.Decimal(inputItem.quantity);
         const unitPrice = this.taxInclusivePrice(
           product.sale_price,
           product.tax_rate,
@@ -135,6 +156,8 @@ export class StorefrontService {
           .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
         return {
           productId: product.id,
+          variantId: variant?.id,
+          variantLabel: variant?.label,
           lineNumber: index + 1,
           productName: product.name,
           productCode: product.code,
@@ -169,6 +192,7 @@ export class StorefrontService {
         createdAt: order.created_at,
         items: order.catalog_order_item.map((item) => ({
           productName: item.product_name,
+          variantLabel: item.variant_label,
           quantity: item.quantity,
           unitPrice: item.unit_price,
           subtotal: item.subtotal,
@@ -198,12 +222,36 @@ export class StorefrontService {
       stock: Array<{
         quantity: Prisma.Decimal;
         minimum_quantity: Prisma.Decimal;
+        variant_id: string | null;
       }>;
+      product_variant: Array<{ id: string; label: string; sort_order: number }>;
     },
     showPrices: boolean,
     showAvailability: boolean,
   ) {
-    const availability = this.availability(product);
+    const hasVariants = product.product_variant.length > 0;
+    const variantAvailabilities = product.product_variant.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      availability: this.availability({
+        tracks_stock: product.tracks_stock,
+        stock: product.stock.filter((row) => row.variant_id === variant.id),
+      }),
+    }));
+    const variants = hasVariants
+      ? variantAvailabilities.map((variant) => ({
+          id: variant.id,
+          label: variant.label,
+          availability: showAvailability ? variant.availability : null,
+          inStock: variant.availability !== 'OUT_OF_STOCK',
+        }))
+      : null;
+    const availability = hasVariants
+      ? this.bestAvailability(variantAvailabilities.map((v) => v.availability))
+      : this.availability({
+          tracks_stock: product.tracks_stock,
+          stock: product.stock.filter((row) => row.variant_id === null),
+        });
     return {
       id: product.id,
       name: product.name,
@@ -222,6 +270,7 @@ export class StorefrontService {
         : null,
       availability: showAvailability ? availability : null,
       inStock: availability !== 'OUT_OF_STOCK',
+      variants,
     };
   }
 
@@ -247,6 +296,18 @@ export class StorefrontService {
       : new Prisma.Decimal(3);
     if (quantity.lessThanOrEqualTo(lowThreshold)) return 'LOW_STOCK';
     return 'AVAILABLE';
+  }
+
+  private bestAvailability(values: Availability[]): Availability {
+    const rank: Record<Availability, number> = {
+      AVAILABLE: 2,
+      LOW_STOCK: 1,
+      OUT_OF_STOCK: 0,
+    };
+    return values.reduce<Availability>(
+      (best, current) => (rank[current] > rank[best] ? current : best),
+      'OUT_OF_STOCK',
+    );
   }
 
   private hashIp(ip: string) {

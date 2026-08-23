@@ -17,6 +17,10 @@ export class SaleItemInputDto {
   @IsUUID()
   productId!: string;
 
+  @IsOptional()
+  @IsUUID()
+  variantId?: string;
+
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)

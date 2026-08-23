@@ -11,6 +11,7 @@ export type TransactionClient = Omit<
 const stockSelect = {
   id: true,
   product_id: true,
+  variant_id: true,
   warehouse_id: true,
   quantity: true,
   minimum_quantity: true,
@@ -28,6 +29,9 @@ const stockSelect = {
       image_url: true,
     },
   },
+  product_variant: {
+    select: { id: true, label: true },
+  },
   warehouse: {
     select: {
       id: true,
@@ -43,6 +47,7 @@ const stockSelect = {
 const movementSelect = {
   id: true,
   product_id: true,
+  variant_id: true,
   warehouse_id: true,
   movement_type: true,
   quantity: true,
@@ -54,6 +59,9 @@ const movementSelect = {
   product: {
     select: { id: true, code: true, name: true, unit: true, image_url: true },
   },
+  product_variant: {
+    select: { id: true, label: true },
+  },
   warehouse: { select: { id: true, code: true, name: true } },
   user: { select: { id: true, first_name: true, last_name: true } },
 } satisfies Prisma.stock_movementSelect;
@@ -64,12 +72,18 @@ export class StockRepository {
 
   findAll(
     companyId: string,
-    filters?: { productId?: string; warehouseId?: string; lowStock?: boolean },
+    filters?: {
+      productId?: string;
+      variantId?: string;
+      warehouseId?: string;
+      lowStock?: boolean;
+    },
   ) {
     return this.prisma.stock.findMany({
       where: {
         company_id: companyId,
         ...(filters?.productId ? { product_id: filters.productId } : {}),
+        ...(filters?.variantId ? { variant_id: filters.variantId } : {}),
         ...(filters?.warehouseId ? { warehouse_id: filters.warehouseId } : {}),
         ...(filters?.lowStock
           ? { quantity: { lte: this.prisma.stock.fields.minimum_quantity } }
@@ -107,12 +121,13 @@ export class StockRepository {
 
   findMovements(
     companyId: string,
-    filters?: { productId?: string; warehouseId?: string },
+    filters?: { productId?: string; variantId?: string; warehouseId?: string },
   ) {
     return this.prisma.stock_movement.findMany({
       where: {
         company_id: companyId,
         ...(filters?.productId ? { product_id: filters.productId } : {}),
+        ...(filters?.variantId ? { variant_id: filters.variantId } : {}),
         ...(filters?.warehouseId ? { warehouse_id: filters.warehouseId } : {}),
       },
       select: movementSelect,
@@ -153,36 +168,81 @@ export class StockRepository {
     });
   }
 
+  findActiveVariant(
+    tx: TransactionClient,
+    companyId: string,
+    productId: string,
+    variantId: string,
+  ) {
+    return tx.product_variant.findFirst({
+      where: {
+        id: variantId,
+        product_id: productId,
+        company_id: companyId,
+        is_active: true,
+      },
+      select: { id: true },
+    });
+  }
+
   lockStock(
     tx: TransactionClient,
     companyId: string,
     warehouseId: string,
     productId: string,
+    variantId?: string,
   ) {
-    const key = `${companyId}:${warehouseId}:${productId}`;
+    const key = `${companyId}:${warehouseId}:${productId}:${variantId ?? 'null'}`;
     return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
   }
 
-  upsertStock(
+  async upsertStock(
     tx: TransactionClient,
     companyId: string,
     warehouseId: string,
     productId: string,
+    variantId?: string,
   ) {
-    return tx.stock.upsert({
-      where: {
-        warehouse_id_product_id: {
+    if (variantId) {
+      return tx.stock.upsert({
+        where: {
+          warehouse_id_product_id_variant_id: {
+            warehouse_id: warehouseId,
+            product_id: productId,
+            variant_id: variantId,
+          },
+        },
+        create: {
+          company_id: companyId,
           warehouse_id: warehouseId,
           product_id: productId,
+          variant_id: variantId,
+          quantity: 0,
         },
-      },
-      create: {
+        update: {},
+        select: { id: true, quantity: true },
+      });
+    }
+
+    // Prisma's generated compound-unique input for warehouse_id_product_id_variant_id
+    // cannot take `null` for variant_id, so the no-variant case is resolved with a
+    // plain find-then-create instead of `upsert`. Callers already serialize concurrent
+    // writes via `lockStock`'s advisory lock, so this stays race-free.
+    const existing = await tx.stock.findFirst({
+      where: { warehouse_id: warehouseId, product_id: productId, variant_id: null },
+      select: { id: true, quantity: true },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    return tx.stock.create({
+      data: {
         company_id: companyId,
         warehouse_id: warehouseId,
         product_id: productId,
         quantity: 0,
       },
-      update: {},
       select: { id: true, quantity: true },
     });
   }
@@ -200,6 +260,7 @@ export class StockRepository {
     data: {
       companyId: string;
       productId: string;
+      variantId?: string;
       warehouseId: string;
       movementType: string;
       quantity: Prisma.Decimal;
@@ -213,6 +274,7 @@ export class StockRepository {
       data: {
         company_id: data.companyId,
         product_id: data.productId,
+        variant_id: data.variantId,
         warehouse_id: data.warehouseId,
         movement_type: data.movementType,
         quantity: data.quantity,

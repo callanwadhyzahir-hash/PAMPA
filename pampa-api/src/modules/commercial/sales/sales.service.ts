@@ -91,6 +91,7 @@ export class SalesService {
         context.companyId,
         sale.sale_item.map((item) => ({
           productId: item.product_id,
+          variantId: item.variant_id ?? undefined,
           quantity: item.quantity.toNumber(),
           discountPercent: item.discount_percent.toNumber(),
         })),
@@ -104,12 +105,14 @@ export class SalesService {
           context.companyId,
           sale.warehouse_id,
           item.productId,
+          item.variantId,
         );
         const stock = await this.stockRepository.upsertStock(
           tx,
           context.companyId,
           sale.warehouse_id,
           item.productId,
+          item.variantId,
         );
         const nextQuantity = stock.quantity.minus(item.quantity);
         if (nextQuantity.isNegative()) {
@@ -121,6 +124,7 @@ export class SalesService {
         await this.stockRepository.createMovement(tx, {
           companyId: context.companyId,
           productId: item.productId,
+          variantId: item.variantId,
           warehouseId: sale.warehouse_id,
           movementType: 'SALE',
           quantity: item.quantity,
@@ -140,6 +144,7 @@ export class SalesService {
           id: item.id!,
           productName: item.productName,
           productCode: item.productCode,
+          variantLabel: item.variantLabel,
           unitPrice: item.unitPrice,
           taxRate: item.taxRate,
           discountPercent: item.discountPercent,
@@ -213,12 +218,14 @@ export class SalesService {
           context.companyId,
           sale.warehouse_id,
           item.product_id,
+          item.variant_id ?? undefined,
         );
         const stock = await this.stockRepository.upsertStock(
           tx,
           context.companyId,
           sale.warehouse_id,
           item.product_id,
+          item.variant_id ?? undefined,
         );
         await this.stockRepository.updateQuantity(
           tx,
@@ -228,6 +235,7 @@ export class SalesService {
         await this.stockRepository.createMovement(tx, {
           companyId: context.companyId,
           productId: item.product_id,
+          variantId: item.variant_id ?? undefined,
           warehouseId: sale.warehouse_id,
           movementType: 'SALE_CANCEL',
           quantity: item.quantity,
@@ -253,23 +261,34 @@ export class SalesService {
     inputs: SaleItemInputDto[],
     existingIds?: string[],
   ) {
-    const uniqueIds = [...new Set(inputs.map((item) => item.productId))];
-    if (uniqueIds.length !== inputs.length) {
+    const uniqueKeys = new Set(
+      inputs.map((item) => `${item.productId}:${item.variantId ?? ''}`),
+    );
+    if (uniqueKeys.size !== inputs.length) {
       throw new ConflictException(
-        'Cada producto debe aparecer una sola vez en la venta.',
+        'Cada producto (o variante) debe aparecer una sola vez en la venta.',
       );
     }
+    const uniqueProductIds = [...new Set(inputs.map((item) => item.productId))];
     const products = await this.repository.findProducts(
       tx,
       companyId,
-      uniqueIds,
+      uniqueProductIds,
     );
-    if (products.length !== uniqueIds.length) {
+    if (products.length !== uniqueProductIds.length) {
       throw new NotFoundException('Uno o más productos no están disponibles.');
     }
     const byId = new Map(products.map((product) => [product.id, product]));
     const items = inputs.map((input, index) => {
       const product = byId.get(input.productId)!;
+      const variant = input.variantId
+        ? product.product_variant.find((v) => v.id === input.variantId)
+        : undefined;
+      if (input.variantId && !variant) {
+        throw new NotFoundException(
+          `La variante seleccionada para ${product.name} ya no está disponible.`,
+        );
+      }
       const quantity = new Prisma.Decimal(input.quantity);
       const unitPrice = product.sale_price;
       if (unitPrice.lessThanOrEqualTo(0)) {
@@ -285,6 +304,8 @@ export class SalesService {
       return {
         id: existingIds?.[index],
         productId: product.id,
+        variantId: variant?.id,
+        variantLabel: variant?.label,
         lineNumber: index + 1,
         productName: product.name,
         productCode: product.code,

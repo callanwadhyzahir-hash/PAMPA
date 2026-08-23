@@ -144,25 +144,29 @@ async function main() {
           is_active: true,
         },
       });
-      await tx.stock.upsert({
-        where: {
-          warehouse_id_product_id: {
+      const existingStock = await tx.stock.findFirst({
+        where: { warehouse_id: warehouse.id, product_id: product.id, variant_id: null },
+        select: { id: true },
+      });
+      if (existingStock) {
+        await tx.stock.update({
+          where: { id: existingStock.id },
+          data: {
+            quantity: data.quantity,
+            minimum_quantity: new Prisma.Decimal('10'),
+          },
+        });
+      } else {
+        await tx.stock.create({
+          data: {
+            company_id: actor.company_id,
             warehouse_id: warehouse.id,
             product_id: product.id,
+            quantity: data.quantity,
+            minimum_quantity: new Prisma.Decimal('10'),
           },
-        },
-        create: {
-          company_id: actor.company_id,
-          warehouse_id: warehouse.id,
-          product_id: product.id,
-          quantity: data.quantity,
-          minimum_quantity: new Prisma.Decimal('10'),
-        },
-        update: {
-          quantity: data.quantity,
-          minimum_quantity: new Prisma.Decimal('10'),
-        },
-      });
+        });
+      }
       productCount += 1;
     }
 

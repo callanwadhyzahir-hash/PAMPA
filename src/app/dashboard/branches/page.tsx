@@ -30,16 +30,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CitySelect } from '@/components/domain/master-data/CitySelect';
 import { useAuthSession } from '@/hooks/use-auth-session';
 import { ApiError } from '@/services/api';
 import {
   branchesService,
   type CreateBranchInput,
 } from '@/services/administration/branches.service';
-import {
-  citiesService,
-  type CityOption,
-} from '@/services/administration/cities.service';
 import type { BranchDetail } from '@/services/administration/types';
 
 const emptyBranch: CreateBranchInput = {
@@ -60,7 +57,6 @@ const emptyBranch: CreateBranchInput = {
 export default function BranchesPage() {
   const { user } = useAuthSession();
   const [branches, setBranches] = useState<BranchDetail[]>([]);
-  const [cities, setCities] = useState<CityOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -75,12 +71,8 @@ export default function BranchesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [branchRows, cityRows] = await Promise.all([
-        branchesService.list(),
-        citiesService.list(),
-      ]);
+      const branchRows = await branchesService.list();
       setBranches(branchRows);
-      setCities(cityRows);
     } catch (reason) {
       setError(message(reason));
     } finally {
@@ -162,7 +154,7 @@ export default function BranchesPage() {
           </p>
         </div>
         {canCreate ? (
-          <Button onClick={() => setOpen(true)}>
+          <Button data-tour="branch-new-button" onClick={() => setOpen(true)}>
             <Plus className="size-4" />
             Nueva sucursal
           </Button>
@@ -328,29 +320,22 @@ export default function BranchesPage() {
                   }
                 />
               </Field>
-              <Field label="Ciudad">
-                <select
-                  required
-                  className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm"
-                  value={form.address.cityId}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      address: {
-                        ...current.address,
-                        cityId: event.target.value,
-                      },
-                    }))
-                  }
-                >
-                  <option value="">Seleccionar ciudad</option>
-                  {cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name} · {city.state.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <div data-tour="branch-city-select">
+                <Field label="Ciudad">
+                  <CitySelect
+                    value={form.address.cityId}
+                    onChange={(cityId) =>
+                      setForm((current) => ({
+                        ...current,
+                        address: {
+                          ...current.address,
+                          cityId,
+                        },
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
               <Field label="Calle">
                 <Input
                   required

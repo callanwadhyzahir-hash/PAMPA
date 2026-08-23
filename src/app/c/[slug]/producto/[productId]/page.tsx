@@ -21,6 +21,7 @@ export default function StorefrontProductPage() {
   const [notFound, setNotFound] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -30,7 +31,10 @@ export default function StorefrontProductPage() {
       storefrontService
         .getProduct(params.slug, params.productId)
         .then((result) => {
-          if (active) setProduct(result);
+          if (!active) return;
+          setProduct(result);
+          const firstInStock = result.variants?.find((variant) => variant.inStock);
+          setSelectedVariantId(firstInStock?.id ?? result.variants?.[0]?.id ?? null);
         })
         .catch(() => {
           if (active) setNotFound(true);
@@ -45,11 +49,20 @@ export default function StorefrontProductPage() {
     };
   }, [params.slug, params.productId]);
 
+  const hasVariants = Boolean(product?.variants?.length);
+  const selectedVariant = product?.variants?.find((variant) => variant.id === selectedVariantId) ?? null;
+  const outOfStock = hasVariants
+    ? !selectedVariant || !selectedVariant.inStock
+    : product?.availability === 'OUT_OF_STOCK';
+
   function handleAdd() {
     if (!product) return;
+    if (hasVariants && !selectedVariant) return;
     add(
       {
         productId: product.id,
+        variantId: selectedVariant?.id ?? null,
+        variantLabel: selectedVariant?.label ?? null,
         name: product.name,
         imageUrl: product.imageUrl,
         price: product.price,
@@ -73,8 +86,6 @@ export default function StorefrontProductPage() {
       />
     );
   }
-
-  const outOfStock = product.availability === 'OUT_OF_STOCK';
 
   return (
     <div className="space-y-4 px-4 pt-4 pb-24">
@@ -109,10 +120,38 @@ export default function StorefrontProductPage() {
         ) : null}
       </div>
 
+      {hasVariants ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Elegí una opción</p>
+          <div className="flex flex-wrap gap-2">
+            {product.variants!.map((variant) => (
+              <button
+                key={variant.id}
+                type="button"
+                disabled={!variant.inStock}
+                onClick={() => setSelectedVariantId(variant.id)}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  variant.id === selectedVariantId
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border bg-background text-foreground'
+                }`}
+              >
+                {variant.label}
+              </button>
+            ))}
+          </div>
+          {selectedVariant ? (
+            <AvailabilityBadge availability={selectedVariant.availability} />
+          ) : (
+            <p className="text-xs text-muted-foreground">Elegí una opción para continuar.</p>
+          )}
+        </div>
+      ) : null}
+
       <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-2xl border-t border-border bg-background p-4">
         {outOfStock ? (
           <Button type="button" disabled className="w-full">
-            Sin stock
+            {hasVariants && !selectedVariant ? 'Elegí una opción' : 'Sin stock'}
           </Button>
         ) : (
           <div className="flex items-center gap-3">

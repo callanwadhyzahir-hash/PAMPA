@@ -12,6 +12,8 @@ import {
 
 export interface CartItem {
   productId: string;
+  variantId: string | null;
+  variantLabel: string | null;
   name: string;
   imageUrl: string | null;
   price: string | null;
@@ -22,8 +24,8 @@ interface CartContextValue {
   items: CartItem[];
   count: number;
   add: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
-  setQuantity: (productId: string, quantity: number) => void;
-  remove: (productId: string) => void;
+  setQuantity: (productId: string, variantId: string | null, quantity: number) => void;
+  remove: (productId: string, variantId: string | null) => void;
   clear: () => void;
   removeMany: (productIds: string[]) => void;
 }
@@ -63,10 +65,12 @@ function CartProvider({ slug, children }: { slug: string; children: ReactNode })
 
   const add = useCallback((item: Omit<CartItem, 'quantity'>, quantity = 1) => {
     setItems((current) => {
-      const existing = current.find((row) => row.productId === item.productId);
+      const existing = current.find(
+        (row) => row.productId === item.productId && row.variantId === item.variantId,
+      );
       if (existing) {
         return current.map((row) =>
-          row.productId === item.productId
+          row.productId === item.productId && row.variantId === item.variantId
             ? { ...row, quantity: row.quantity + quantity }
             : row,
         );
@@ -75,16 +79,27 @@ function CartProvider({ slug, children }: { slug: string; children: ReactNode })
     });
   }, []);
 
-  const setQuantity = useCallback((productId: string, quantity: number) => {
-    setItems((current) =>
-      quantity <= 0
-        ? current.filter((row) => row.productId !== productId)
-        : current.map((row) => (row.productId === productId ? { ...row, quantity } : row)),
-    );
-  }, []);
+  const setQuantity = useCallback(
+    (productId: string, variantId: string | null, quantity: number) => {
+      setItems((current) =>
+        quantity <= 0
+          ? current.filter(
+              (row) => !(row.productId === productId && row.variantId === variantId),
+            )
+          : current.map((row) =>
+              row.productId === productId && row.variantId === variantId
+                ? { ...row, quantity }
+                : row,
+            ),
+      );
+    },
+    [],
+  );
 
-  const remove = useCallback((productId: string) => {
-    setItems((current) => current.filter((row) => row.productId !== productId));
+  const remove = useCallback((productId: string, variantId: string | null) => {
+    setItems((current) =>
+      current.filter((row) => !(row.productId === productId && row.variantId === variantId)),
+    );
   }, []);
 
   const removeMany = useCallback((productIds: string[]) => {

@@ -17,6 +17,13 @@ export interface StorefrontCategory {
   name: string;
 }
 
+export interface StorefrontVariant {
+  id: string;
+  label: string;
+  availability: Availability;
+  inStock: boolean;
+}
+
 export interface StorefrontProduct {
   id: string;
   name: string;
@@ -28,6 +35,7 @@ export interface StorefrontProduct {
   price: string | null;
   availability: Availability;
   inStock: boolean;
+  variants: StorefrontVariant[] | null;
 }
 
 export interface StorefrontProductPage {
@@ -40,7 +48,7 @@ export interface SubmitOrderInput {
   customerPhone: string;
   customerEmail?: string;
   notes?: string;
-  items: Array<{ productId: string; quantity: number }>;
+  items: Array<{ productId: string; variantId?: string; quantity: number }>;
 }
 
 export interface SubmitOrderResult {
@@ -49,7 +57,13 @@ export interface SubmitOrderResult {
   status: string;
   total: string;
   createdAt: string;
-  items: Array<{ productName: string; quantity: string; unitPrice: string; subtotal: string }>;
+  items: Array<{
+    productName: string;
+    variantLabel: string | null;
+    quantity: string;
+    unitPrice: string;
+    subtotal: string;
+  }>;
 }
 
 export const storefrontService = {

@@ -7,6 +7,8 @@ interface ApiEnvelope<T> {
 export interface SaleItem {
   id: string;
   product_id: string;
+  variant_id: string | null;
+  variant_label: string | null;
   product_name: string;
   product_code: string;
   quantity: string;
@@ -118,6 +120,7 @@ export const salesService = {
     notes?: string;
     items: Array<{
       productId: string;
+      variantId?: string;
       quantity: number;
       discountPercent?: number;
     }>;

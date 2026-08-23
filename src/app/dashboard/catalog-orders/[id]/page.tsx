@@ -142,7 +142,11 @@ export default function CatalogOrderDetailPage() {
                     imageUrl={item.product.image_url}
                     name={item.product_name}
                     code={item.product_code}
-                    meta={`x${item.quantity}`}
+                    meta={
+                      item.variant_label
+                        ? `${item.variant_label} · x${item.quantity}`
+                        : `x${item.quantity}`
+                    }
                   />
                   {!item.product.is_active ? (
                     <Badge variant="danger">Producto dado de baja</Badge>

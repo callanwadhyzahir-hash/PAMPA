@@ -43,7 +43,11 @@ export default function StorefrontCartPage() {
         customerPhone: phone,
         customerEmail: email || undefined,
         notes: notes || undefined,
-        items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        items: items.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId ?? undefined,
+          quantity: item.quantity,
+        })),
       });
       setResult(order);
       clear();
@@ -78,6 +82,7 @@ export default function StorefrontCartPage() {
             <div key={index} className="flex justify-between">
               <span>
                 {item.quantity} × {item.productName}
+                {item.variantLabel ? ` (${item.variantLabel})` : ''}
               </span>
               <span>${item.subtotal}</span>
             </div>
@@ -112,10 +117,15 @@ export default function StorefrontCartPage() {
 
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.productId} className="flex items-center gap-3">
+          <div key={`${item.productId}:${item.variantId ?? ''}`} className="flex items-center gap-3">
             <ProductImage src={item.imageUrl} alt={item.name} size="md" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{item.name}</p>
+              <p className="truncate text-sm font-medium">
+                {item.name}
+                {item.variantLabel ? (
+                  <span className="text-muted-foreground"> · {item.variantLabel}</span>
+                ) : null}
+              </p>
               {item.price ? (
                 <p className="text-xs text-muted-foreground">${item.price} c/u</p>
               ) : null}
@@ -124,7 +134,7 @@ export default function StorefrontCartPage() {
                   <button
                     type="button"
                     className="flex size-7 items-center justify-center"
-                    onClick={() => setQuantity(item.productId, item.quantity - 1)}
+                    onClick={() => setQuantity(item.productId, item.variantId, item.quantity - 1)}
                     aria-label="Restar"
                   >
                     <Minus className="size-3.5" />
@@ -133,7 +143,7 @@ export default function StorefrontCartPage() {
                   <button
                     type="button"
                     className="flex size-7 items-center justify-center"
-                    onClick={() => setQuantity(item.productId, item.quantity + 1)}
+                    onClick={() => setQuantity(item.productId, item.variantId, item.quantity + 1)}
                     aria-label="Sumar"
                   >
                     <Plus className="size-3.5" />
@@ -142,7 +152,7 @@ export default function StorefrontCartPage() {
                 <button
                   type="button"
                   className="flex size-7 items-center justify-center text-muted-foreground hover:text-destructive"
-                  onClick={() => remove(item.productId)}
+                  onClick={() => remove(item.productId, item.variantId)}
                   aria-label="Quitar"
                 >
                   <Trash2 className="size-4" />

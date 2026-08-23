@@ -50,6 +50,7 @@ export interface CatalogOrderDetail {
     product_id: string;
     product_name: string;
     product_code: string;
+    variant_label: string | null;
     quantity: string;
     unit_price: string;
     subtotal: string;

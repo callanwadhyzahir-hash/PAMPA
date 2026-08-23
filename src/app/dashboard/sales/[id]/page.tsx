@@ -242,6 +242,7 @@ export default function SaleDetailPage() {
                 <TableRow key={item.id}>
                   <TableCell>
                     {item.product_name}
+                    {item.variant_label ? ` · ${item.variant_label}` : ''}
                     <span className="block text-xs text-muted-foreground">
                       {item.product_code}
                     </span>

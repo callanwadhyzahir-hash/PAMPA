@@ -115,6 +115,14 @@ export default function NewSalePage() {
       setError('Agregá al menos un producto.');
       return;
     }
+    const missingVariant = items.find((item) => {
+      const product = products.find((row) => row.id === item.productId);
+      return product && product.product_variant.length > 0 && !item.variantId;
+    });
+    if (missingVariant) {
+      setError('Elegí una variante para cada producto que la tenga.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -125,6 +133,7 @@ export default function NewSalePage() {
         notes: notes || undefined,
         items: items.map((item) => ({
           productId: item.productId,
+          variantId: item.variantId,
           quantity: Number(item.quantity),
           discountPercent: Number(item.discountPercent),
         })),
@@ -265,8 +274,8 @@ export default function NewSalePage() {
                 )!;
                 return (
                   <div
-                    key={item.productId}
-                    className="grid items-end gap-3 rounded-xl border p-3 sm:grid-cols-[1fr_120px_120px_auto]"
+                    key={`${item.productId}:${item.variantId ?? ''}`}
+                    className="grid items-end gap-3 rounded-xl border p-3 sm:grid-cols-[1fr_140px_120px_120px_auto]"
                   >
                     <div className="flex items-center gap-2">
                       <ProductImage
@@ -281,6 +290,31 @@ export default function NewSalePage() {
                         </p>
                       </div>
                     </div>
+                    {product.product_variant.length > 0 ? (
+                      <Field label="Variante">
+                        <select
+                          required
+                          className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm"
+                          value={item.variantId ?? ''}
+                          onChange={(event) =>
+                            setItems((current) =>
+                              current.map((row) =>
+                                row === item
+                                  ? { ...row, variantId: event.target.value || undefined }
+                                  : row,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="">Elegir</option>
+                          {product.product_variant.map((variant) => (
+                            <option key={variant.id} value={variant.id}>
+                              {variant.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    ) : null}
                     <Field label="Cantidad">
                       <Input
                         type="number"
@@ -290,7 +324,7 @@ export default function NewSalePage() {
                         onChange={(event) =>
                           setItems((current) =>
                             current.map((row) =>
-                              row.productId === item.productId
+                              row === item
                                 ? { ...row, quantity: event.target.value }
                                 : row,
                             ),
@@ -308,7 +342,7 @@ export default function NewSalePage() {
                         onChange={(event) =>
                           setItems((current) =>
                             current.map((row) =>
-                              row.productId === item.productId
+                              row === item
                                 ? {
                                     ...row,
                                     discountPercent: event.target.value,
@@ -326,9 +360,7 @@ export default function NewSalePage() {
                       aria-label={`Quitar ${product.name}`}
                       onClick={() =>
                         setItems((current) =>
-                          current.filter(
-                            (row) => row.productId !== item.productId,
-                          ),
+                          current.filter((row) => row !== item),
                         )
                       }
                     >

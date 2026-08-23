@@ -64,6 +64,16 @@ function MasterDataSelect({
           placeholder="Buscar"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          // Base UI's Menu attaches Floating UI's typeahead handler to the
+          // popup: any single-character keydown bubbling up to it calls
+          // preventDefault() to jump-select a menu item by its first letter,
+          // which silently ate every keystroke meant for this search input.
+          // Only stop propagation for those single-character keys — Escape,
+          // arrows, Enter and Tab (event.key.length > 1) still bubble so the
+          // menu's own dismiss/list-navigation keeps working.
+          onKeyDown={(event) => {
+            if (event.key.length === 1) event.stopPropagation();
+          }}
           className="mb-2"
         />
         <div className="max-h-56 overflow-y-auto">

@@ -10,6 +10,7 @@ import {
   Plus,
   Search,
   Wand2,
+  X,
 } from 'lucide-react';
 
 import {
@@ -45,12 +46,27 @@ import { ApiError } from '@/services/api';
 import {
   productCategoriesService,
   type ProductCategory,
+  type ProductCategoryAttributeKind,
 } from '@/services/catalog/product-categories.service';
 import {
   productsService,
   type Product,
   type ProductInput,
 } from '@/services/catalog/products.service';
+
+interface VariantDraftRow {
+  id?: string;
+  label: string;
+  skuSuffix: string;
+}
+
+const ATTRIBUTE_KIND_DEFAULTS: Record<ProductCategoryAttributeKind, string[]> = {
+  NONE: [],
+  SIZE: ['S', 'M', 'L', 'XL'],
+  VOLUME_ML: ['250ml', '500ml', '1000ml'],
+  VOLUME_L: ['1L', '1.5L', '2L'],
+  CUSTOM: [],
+};
 
 interface ProductForm {
   code: string;
@@ -100,6 +116,10 @@ export default function ProductsPage() {
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [printing, setPrinting] = useState<Product | null>(null);
   const [stagedImageFile, setStagedImageFile] = useState<File | null>(null);
+  const [variantDraft, setVariantDraft] = useState<VariantDraftRow[]>([]);
+  const [originalVariants, setOriginalVariants] = useState<
+    Product['product_variant']
+  >([]);
   // Bumped on every dialog open so ProductImageUpload (keyed by it) remounts
   // with a clean slate — otherwise a cancelled "new product" would leak its
   // staged preview/error into the next one.
@@ -144,6 +164,8 @@ export default function ProductsPage() {
     setEditing(null);
     setForm(emptyForm);
     setStagedImageFile(null);
+    setVariantDraft([]);
+    setOriginalVariants([]);
     setError(null);
     setDialogSession((session) => session + 1);
     setOpen(true);
@@ -167,6 +189,14 @@ export default function ProductsPage() {
       isActive: product.is_active,
     });
     setStagedImageFile(null);
+    setVariantDraft(
+      product.product_variant.map((variant) => ({
+        id: variant.id,
+        label: variant.label,
+        skuSuffix: variant.sku_suffix ?? '',
+      })),
+    );
+    setOriginalVariants(product.product_variant);
     setError(null);
     setDialogSession((session) => session + 1);
     setOpen(true);
@@ -224,11 +254,22 @@ export default function ProductsPage() {
         }
       }
 
+      let variantError: string | null = null;
+      try {
+        await saveVariants(product.id, originalVariants, variantDraft);
+      } catch (reason) {
+        variantError = `Producto guardado, pero no se pudieron guardar las variantes: ${errorMessage(reason)}`;
+      }
+
       setOpen(false);
       setEditing(null);
       setStagedImageFile(null);
+      setVariantDraft([]);
+      setOriginalVariants([]);
       await load(1);
-      if (imageError) setError(imageError);
+      if (imageError || variantError) {
+        setError([imageError, variantError].filter(Boolean).join(' '));
+      }
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -272,7 +313,7 @@ export default function ProductsPage() {
           </p>
         </div>
         {canCreate ? (
-          <Button onClick={openCreate}>
+          <Button data-tour="product-new-button" onClick={openCreate}>
             <Plus className="size-4" aria-hidden />
             Nuevo producto
           </Button>
@@ -474,6 +515,8 @@ export default function ProductsPage() {
         categories={categories}
         saving={saving}
         setForm={setForm}
+        variantDraft={variantDraft}
+        setVariantDraft={setVariantDraft}
         dialogSession={dialogSession}
         onFileStaged={setStagedImageFile}
         onImageUploaded={(imageUrl) =>
@@ -541,6 +584,8 @@ function ProductDialog({
   categories,
   saving,
   setForm,
+  variantDraft,
+  setVariantDraft,
   dialogSession,
   onFileStaged,
   onImageUploaded,
@@ -554,6 +599,8 @@ function ProductDialog({
   categories: ProductCategory[];
   saving: boolean;
   setForm: React.Dispatch<React.SetStateAction<ProductForm>>;
+  variantDraft: VariantDraftRow[];
+  setVariantDraft: React.Dispatch<React.SetStateAction<VariantDraftRow[]>>;
   dialogSession: number;
   onFileStaged: (file: File | null) => void;
   onImageUploaded: (imageUrl: string) => void;
@@ -568,6 +615,26 @@ function ProductDialog({
 
   function field<K extends keyof ProductForm>(key: K, value: ProductForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  const selectedCategory = categories.find(
+    (category) => category.id === form.categoryId,
+  );
+  const showVariants =
+    (selectedCategory && selectedCategory.attribute_kind !== 'NONE') ||
+    variantDraft.length > 0;
+
+  function changeCategory(categoryId: string) {
+    field('categoryId', categoryId);
+    const category = categories.find((item) => item.id === categoryId);
+    if (!category || category.attribute_kind === 'NONE') return;
+    setVariantDraft((current) => {
+      if (current.length > 0) return current;
+      const options = category.product_category_attribute_option.length
+        ? category.product_category_attribute_option.map((option) => option.label)
+        : ATTRIBUTE_KIND_DEFAULTS[category.attribute_kind];
+      return options.map((label) => ({ label, skuSuffix: '' }));
+    });
   }
 
   const barcodeEntry = useBarcodeEntry({
@@ -672,7 +739,7 @@ function ProductDialog({
               <select
                 className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm"
                 value={form.categoryId}
-                onChange={(event) => field('categoryId', event.target.value)}
+                onChange={(event) => changeCategory(event.target.value)}
               >
                 <option value="">Sin categoría</option>
                 {categories.map((category) => (
@@ -744,6 +811,80 @@ function ProductDialog({
                 onChange={(event) => field('description', event.target.value)}
               />
             </Field>
+            {showVariants ? (
+              <div
+                className="space-y-1.5 text-sm font-medium sm:col-span-2"
+                data-tour="product-variant-editor"
+              >
+                <span>Variantes</span>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  {selectedCategory && selectedCategory.attribute_kind !== 'NONE'
+                    ? `Talles, ml o litros según la categoría "${selectedCategory.name}". El comprador va a ver cuál está disponible.`
+                    : 'El comprador va a ver cuál variante está disponible.'}
+                </span>
+                <div className="space-y-2">
+                  {variantDraft.map((row, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        placeholder="Etiqueta (ej. M, 500ml)"
+                        maxLength={50}
+                        value={row.label}
+                        onChange={(event) =>
+                          setVariantDraft((current) =>
+                            current.map((value, valueIndex) =>
+                              valueIndex === index
+                                ? { ...value, label: event.target.value }
+                                : value,
+                            ),
+                          )
+                        }
+                      />
+                      <Input
+                        placeholder="Sufijo SKU (opcional)"
+                        maxLength={30}
+                        value={row.skuSuffix}
+                        onChange={(event) =>
+                          setVariantDraft((current) =>
+                            current.map((value, valueIndex) =>
+                              valueIndex === index
+                                ? { ...value, skuSuffix: event.target.value }
+                                : value,
+                            ),
+                          )
+                        }
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Quitar variante"
+                        onClick={() =>
+                          setVariantDraft((current) =>
+                            current.filter((_, valueIndex) => valueIndex !== index),
+                          )
+                        }
+                      >
+                        <X className="size-3.5" aria-hidden />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setVariantDraft((current) => [
+                      ...current,
+                      { label: '', skuSuffix: '' },
+                    ])
+                  }
+                >
+                  <Plus className="size-3.5" aria-hidden />
+                  Agregar variante
+                </Button>
+              </div>
+            ) : null}
             <label className="flex items-center gap-2 text-sm font-medium">
               <input
                 type="checkbox"
@@ -804,6 +945,49 @@ function Detail({ label, value }: { label: string; value: string }) {
       <dd className="font-medium">{value}</dd>
     </div>
   );
+}
+
+async function saveVariants(
+  productId: string,
+  original: Product['product_variant'],
+  draft: VariantDraftRow[],
+) {
+  const originalById = new Map(original.map((variant) => [variant.id, variant]));
+  const draftIds = new Set(
+    draft.map((row) => row.id).filter((id): id is string => Boolean(id)),
+  );
+
+  const removed = original.filter((variant) => !draftIds.has(variant.id));
+  const toCreate = draft.filter(
+    (row) => !row.id && row.label.trim().length > 0,
+  );
+  const toUpdate = draft.filter((row) => {
+    if (!row.id) return false;
+    const previous = originalById.get(row.id);
+    if (!previous) return false;
+    return (
+      row.label.trim() !== previous.label ||
+      (row.skuSuffix.trim() || null) !== previous.sku_suffix
+    );
+  });
+
+  await Promise.all([
+    ...toCreate.map((row) =>
+      productsService.createVariant(productId, {
+        label: row.label.trim(),
+        skuSuffix: row.skuSuffix.trim() || undefined,
+      }),
+    ),
+    ...toUpdate.map((row) =>
+      productsService.updateVariant(productId, row.id!, {
+        label: row.label.trim(),
+        skuSuffix: row.skuSuffix.trim() || undefined,
+      }),
+    ),
+    ...removed.map((variant) =>
+      productsService.removeVariant(productId, variant.id),
+    ),
+  ]);
 }
 
 function errorMessage(reason: unknown) {

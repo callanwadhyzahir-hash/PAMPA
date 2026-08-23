@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Pencil, Plus, Search, Tags } from 'lucide-react';
+import { Pencil, Plus, Search, Tags, X } from 'lucide-react';
 
 import { ErrorState, LoadingState } from '@/components/pampa-ui';
 import { Badge } from '@/components/ui/badge';
@@ -35,18 +35,39 @@ import { ApiError } from '@/services/api';
 import {
   productCategoriesService,
   type ProductCategory,
+  type ProductCategoryAttributeKind,
 } from '@/services/catalog/product-categories.service';
+
+const ATTRIBUTE_KIND_LABELS: Record<ProductCategoryAttributeKind, string> = {
+  NONE: 'Sin variantes',
+  SIZE: 'Talles',
+  VOLUME_ML: 'Volumen (ml)',
+  VOLUME_L: 'Volumen (litros)',
+  CUSTOM: 'Personalizado',
+};
+
+const ATTRIBUTE_KIND_DEFAULTS: Record<ProductCategoryAttributeKind, string[]> = {
+  NONE: [],
+  SIZE: ['S', 'M', 'L', 'XL'],
+  VOLUME_ML: ['250ml', '500ml', '1000ml'],
+  VOLUME_L: ['1L', '1.5L', '2L'],
+  CUSTOM: [],
+};
 
 interface CategoryForm {
   name: string;
   description: string;
   isActive: boolean;
+  attributeKind: ProductCategoryAttributeKind;
+  attributeOptions: string[];
 }
 
 const emptyForm: CategoryForm = {
   name: '',
   description: '',
   isActive: true,
+  attributeKind: 'NONE',
+  attributeOptions: [],
 };
 
 export default function ProductCategoriesPage() {
@@ -107,9 +128,24 @@ export default function ProductCategoriesPage() {
       name: category.name,
       description: category.description ?? '',
       isActive: category.is_active,
+      attributeKind: category.attribute_kind,
+      attributeOptions: category.product_category_attribute_option.map(
+        (option) => option.label,
+      ),
     });
     setError(null);
     setOpen(true);
+  }
+
+  function changeAttributeKind(kind: ProductCategoryAttributeKind) {
+    setForm((current) => ({
+      ...current,
+      attributeKind: kind,
+      attributeOptions:
+        current.attributeOptions.length > 0
+          ? current.attributeOptions
+          : ATTRIBUTE_KIND_DEFAULTS[kind],
+    }));
   }
 
   async function save(event: FormEvent) {
@@ -121,6 +157,13 @@ export default function ProductCategoriesPage() {
         name: form.name,
         description: form.description || undefined,
         isActive: form.isActive,
+        attributeKind: form.attributeKind,
+        attributeOptions:
+          form.attributeKind === 'NONE'
+            ? []
+            : form.attributeOptions
+                .map((option) => option.trim())
+                .filter((option) => option.length > 0),
       };
       if (editing) {
         await productCategoriesService.update(editing.id, input);
@@ -173,7 +216,7 @@ export default function ProductCategoriesPage() {
           </p>
         </div>
         {canCreate ? (
-          <Button onClick={openCreate}>
+          <Button data-tour="category-new-button" onClick={openCreate}>
             <Plus className="size-4" aria-hidden />
             Nueva categoría
           </Button>
@@ -236,7 +279,14 @@ export default function ProductCategoriesPage() {
                           aria-hidden
                         />
                         <div>
-                          <p className="font-medium">{category.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{category.name}</p>
+                            {category.attribute_kind !== 'NONE' ? (
+                              <Badge variant="info">
+                                {ATTRIBUTE_KIND_LABELS[category.attribute_kind]}
+                              </Badge>
+                            ) : null}
+                          </div>
                           <p className="max-w-xl text-xs text-muted-foreground">
                             {category.description ?? 'Sin descripción'}
                           </p>
@@ -327,6 +377,93 @@ export default function ProductCategoriesPage() {
                   }
                 />
               </label>
+              <label
+                className="space-y-1.5 text-sm font-medium"
+                data-tour="category-attribute-kind"
+              >
+                <span>Tipo de variantes</span>
+                <select
+                  className="h-8 w-full rounded-lg border bg-background px-2.5 text-sm"
+                  value={form.attributeKind}
+                  onChange={(event) =>
+                    changeAttributeKind(
+                      event.target.value as ProductCategoryAttributeKind,
+                    )
+                  }
+                >
+                  {Object.entries(ATTRIBUTE_KIND_LABELS).map(
+                    ([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
+                </select>
+                <span className="block text-xs font-normal text-muted-foreground">
+                  Sugiere las opciones (talles, ml, litros) que se precargan al
+                  crear un producto de esta categoría. El producto puede
+                  agregar o quitar variantes igual.
+                </span>
+              </label>
+              {form.attributeKind !== 'NONE' ? (
+                <div
+                  className="space-y-1.5 text-sm font-medium"
+                  data-tour="category-attribute-options"
+                >
+                  <span>Opciones sugeridas</span>
+                  <div className="space-y-2">
+                    {form.attributeOptions.map((option, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          maxLength={50}
+                          value={option}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              attributeOptions: current.attributeOptions.map(
+                                (value, valueIndex) =>
+                                  valueIndex === index
+                                    ? event.target.value
+                                    : value,
+                              ),
+                            }))
+                          }
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Quitar opción"
+                          onClick={() =>
+                            setForm((current) => ({
+                              ...current,
+                              attributeOptions: current.attributeOptions.filter(
+                                (_, valueIndex) => valueIndex !== index,
+                              ),
+                            }))
+                          }
+                        >
+                          <X className="size-3.5" aria-hidden />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        attributeOptions: [...current.attributeOptions, ''],
+                      }))
+                    }
+                  >
+                    <Plus className="size-3.5" aria-hidden />
+                    Agregar opción
+                  </Button>
+                </div>
+              ) : null}
               {editing ? (
                 <label className="flex items-center gap-2 text-sm font-medium">
                   <input

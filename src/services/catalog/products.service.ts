@@ -30,6 +30,12 @@ export interface Product {
     name: string;
     is_active: boolean;
   } | null;
+  product_variant: Array<{
+    id: string;
+    label: string;
+    sku_suffix: string | null;
+    sort_order: number;
+  }>;
   company: {
     currency: {
       id: string;
@@ -53,6 +59,23 @@ export interface ProductInput {
   taxRate?: number;
   tracksStock?: boolean;
   isActive?: boolean;
+}
+
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  label: string;
+  sku_suffix: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductVariantInput {
+  label: string;
+  skuSuffix?: string;
+  sortOrder?: number;
 }
 
 interface ProductPage {
@@ -140,5 +163,46 @@ export const productsService = {
         { method: 'DELETE' },
       )
     ).data;
+  },
+  async listVariants(productId: string) {
+    return (
+      await apiFetch<ApiEnvelope<ProductVariant[]>>(
+        `/products/${productId}/variants`,
+      )
+    ).data;
+  },
+  async createVariant(productId: string, input: ProductVariantInput) {
+    return (
+      await apiFetch<ApiEnvelope<ProductVariant>>(
+        `/products/${productId}/variants`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        },
+      )
+    ).data;
+  },
+  async updateVariant(
+    productId: string,
+    variantId: string,
+    input: Partial<ProductVariantInput> & { isActive?: boolean },
+  ) {
+    return (
+      await apiFetch<ApiEnvelope<ProductVariant>>(
+        `/products/${productId}/variants/${variantId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        },
+      )
+    ).data;
+  },
+  removeVariant(productId: string, variantId: string) {
+    return apiFetch<ApiEnvelope<{ status: 'DEACTIVATED' | 'DELETED' }>>(
+      `/products/${productId}/variants/${variantId}`,
+      { method: 'DELETE' },
+    );
   },
 };

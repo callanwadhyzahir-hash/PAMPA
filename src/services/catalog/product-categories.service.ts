@@ -4,20 +4,37 @@ interface ApiEnvelope<T> {
   data: T;
 }
 
+export type ProductCategoryAttributeKind =
+  | 'NONE'
+  | 'SIZE'
+  | 'VOLUME_ML'
+  | 'VOLUME_L'
+  | 'CUSTOM';
+
+export interface ProductCategoryAttributeOption {
+  id: string;
+  label: string;
+  sort_order: number;
+}
+
 export interface ProductCategory {
   id: string;
   name: string;
   description: string | null;
+  attribute_kind: ProductCategoryAttributeKind;
   is_active: boolean;
   created_at: string;
   updated_at: string;
   _count: { product: number };
+  product_category_attribute_option: ProductCategoryAttributeOption[];
 }
 
 export interface ProductCategoryInput {
   name: string;
   description?: string;
   isActive?: boolean;
+  attributeKind?: ProductCategoryAttributeKind;
+  attributeOptions?: string[];
 }
 
 export const productCategoriesService = {

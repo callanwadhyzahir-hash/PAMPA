@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,6 +11,7 @@ import { join } from 'path';
 
 import { SecurityAuditService } from '../auth/audit/security-audit.service';
 import type { SecurityContext } from '../auth/types/security-context';
+import { CompanyActivationNotifierService } from './company-activation-notifier.service';
 import { PlatformActivityQueryDto } from './dto/activity-query.dto';
 import { PlatformCompanyQueryDto } from './dto/company-query.dto';
 import { DeleteReasonDto } from './dto/delete-reason.dto';
@@ -48,10 +50,13 @@ const COMMIT_ENV_VARS = [
 
 @Injectable()
 export class PlatformAdminService {
+  private readonly logger = new Logger(PlatformAdminService.name);
+
   constructor(
     private readonly repository: PlatformAdminRepository,
     private readonly audit: SecurityAuditService,
     private readonly config: ConfigService,
+    private readonly activationNotifier: CompanyActivationNotifierService,
   ) {}
 
   overview() {
@@ -202,6 +207,22 @@ export class PlatformAdminService {
       metadata: dto.reason ? { reason: dto.reason } : undefined,
     });
 
+    if (dto.isActive) {
+      const owners = await this.repository.getActiveOwnerContacts(id);
+      await Promise.all(
+        owners.map((owner) =>
+          this.activationNotifier
+            .sendActivated({ email: owner.email, firstName: owner.first_name })
+            .catch((error) => {
+              this.logger.error(
+                `Company activation email delivery failed for ${owner.email}.`,
+                error,
+              );
+            }),
+        ),
+      );
+    }
+
     return company;
   }
 
@@ -237,7 +258,9 @@ export class PlatformAdminService {
 
     const blockers = await this.repository.userDeleteBlockers(id);
     const hasHistory =
-      blockers.sales > 0 || blockers.payments > 0 || blockers.stockMovements > 0;
+      blockers.sales > 0 ||
+      blockers.payments > 0 ||
+      blockers.stockMovements > 0;
     if (hasHistory) {
       throw new ConflictException(
         'Este usuario tiene ventas, pagos o movimientos de stock a su nombre — no se puede eliminar sin perder ese historial. Desactivalo en su lugar.',

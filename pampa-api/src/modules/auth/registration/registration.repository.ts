@@ -48,6 +48,12 @@ export class RegistrationRepository {
           permissionIds.set(permission.code, permission.id);
         }
 
+        // New tenants start suspended — platform-admin gates access on
+        // payment by flipping this from the same admin panel used for
+        // suspend/reactivate (see PlatformAdminService.updateCompanyStatus).
+        // is_active is already enforced everywhere company access is
+        // checked (login, every request via SessionContextService), so this
+        // is the only change needed to require admin approval before use.
         const company = await tx.company.create({
           data: {
             company_type_id: companyType.id,
@@ -55,6 +61,7 @@ export class RegistrationRepository {
             currency_id: currency.id,
             name: input.companyName,
             tax_id: input.taxId,
+            is_active: false,
           },
         });
         const user = await tx.user.create({

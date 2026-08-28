@@ -51,7 +51,7 @@ export default function RegisterPage() {
             <>
               <h2 className="text-heading-sm font-medium tracking-[-0.02em]">Crear cuenta</h2>
               <p className="mt-2 text-body-sm text-muted-foreground">Configurá tu empresa y empezá a trabajar con PAMPA.</p>
-              <div className="mt-6 rounded-lg border border-success/20 bg-success-bg px-4 py-3 text-body-sm text-success">Alta inmediata · sin datos de demostración</div>
+              <div className="mt-6 rounded-lg border border-success/20 bg-success-bg px-4 py-3 text-body-sm text-success">Sin datos de demostración · un administrador habilita tu cuenta antes de usarla</div>
               <form onSubmit={submit} className="mt-6 space-y-4">
                 <div className="grid grid-cols-2 gap-3"><Field name="firstName" label="Nombre" placeholder="Juan" /><Field name="lastName" label="Apellido" placeholder="Pérez" /></div>
                 <Field name="companyName" label="Nombre de tu negocio" placeholder="Ej. Distribuidora Norte" />
@@ -112,7 +112,8 @@ function CheckEmailPanel({ email }: { email: string }) {
       <h2 className="mt-7 text-heading-sm font-medium tracking-[-0.02em]">Revisá tu correo</h2>
       <p className="mt-2 text-body-sm leading-6 text-muted-foreground">
         Te enviamos un enlace a <span className="font-medium text-foreground">{email}</span> para verificar tu
-        dirección de correo. Abrilo para activar tu cuenta de PAMPA.
+        dirección de correo. Después de verificarlo, un administrador tiene que habilitar tu
+        cuenta antes de que puedas ingresar — te avisamos por correo cuando esté lista.
       </p>
 
       {feedback ? (

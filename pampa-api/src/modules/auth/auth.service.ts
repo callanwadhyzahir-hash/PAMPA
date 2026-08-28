@@ -28,15 +28,25 @@ export class AuthService {
       passwordHash,
     );
 
-    if (
-      !storedUser ||
-      !passwordMatches ||
-      !storedUser.is_active ||
-      !storedUser.company.is_active
-    ) {
+    if (!storedUser || !passwordMatches) {
       throw new UnauthorizedException(
         'El correo o la contraseña son incorrectos.',
       );
+    }
+
+    if (!storedUser.is_active || !storedUser.company.is_active) {
+      // Only reachable after the password already matched, so this never
+      // reveals account status to someone who doesn't already know the
+      // credentials — same info-hiding posture as the generic message
+      // above, just more useful once you've actually proven you own the
+      // account. Covers both "never approved yet" and "suspended later"
+      // with one honest message, since login can't tell those apart from
+      // is_active alone.
+      throw new UnauthorizedException({
+        message:
+          'Tu cuenta todavía no fue habilitada. Te avisamos por correo cuando esté lista para usarse.',
+        details: { code: 'ACCOUNT_PENDING_APPROVAL' },
+      });
     }
 
     if (!storedUser.email_verified_at) {

@@ -24,6 +24,7 @@ describe('PlatformAdminService', () => {
     listCompanies: jest.fn(),
     getCompanyDetail: jest.fn(),
     updateCompanyStatus: jest.fn(),
+    getActiveOwnerContacts: jest.fn(),
     listUsers: jest.fn(),
     getUserDetail: jest.fn(),
     growthSeries: jest.fn(),
@@ -34,14 +35,17 @@ describe('PlatformAdminService', () => {
   const audit = { record: jest.fn(), listGlobal: jest.fn() };
   const configValues: Record<string, string | undefined> = {};
   const config = { get: jest.fn((key: string) => configValues[key]) };
+  const activationNotifier = { sendActivated: jest.fn() };
   const service = new PlatformAdminService(
     repository as unknown as PlatformAdminRepository,
     audit as unknown as never,
     config as unknown as never,
+    activationNotifier as unknown as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    repository.getActiveOwnerContacts.mockResolvedValue([]);
     for (const key of Object.keys(configValues)) delete configValues[key];
   });
 

@@ -461,6 +461,19 @@ export class PlatformAdminRepository {
     };
   }
 
+  getActiveOwnerContacts(companyId: string) {
+    return this.prisma.user.findMany({
+      where: {
+        company_id: companyId,
+        is_active: true,
+        user_role: {
+          some: { company_id: companyId, role: { system_code: 'OWNER' } },
+        },
+      },
+      select: { email: true, first_name: true },
+    });
+  }
+
   async updateCompanyStatus(id: string, isActive: boolean) {
     const result = await this.prisma.company.updateMany({
       where: { id },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'next/navigation';
 import { Banknote, Printer } from 'lucide-react';
 
@@ -260,7 +261,10 @@ export default function SaleDetailPage() {
         </CardContent>
       </Card>
       {sale.invoice ? (
-        <InvoiceView sale={sale} saving={saving} onFiscalize={fiscalize} />
+        <>
+          <InvoiceView sale={sale} saving={saving} onFiscalize={fiscalize} />
+          <SaleReceiptPrintSheet sale={sale} />
+        </>
       ) : null}
       <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
         <DialogContent>
@@ -388,12 +392,11 @@ function InvoiceView({
     : 'Consumidor final';
   const clientTaxId = snapshotText(invoice.client_snapshot, 'tax_id');
   return (
-    // Always renders as light-paper/dark-ink, independent of the app's
-    // dark/light theme toggle — this is a printable receipt (see "Imprimir"
-    // and the print:hidden buttons below), so it pins its own text colors
-    // instead of the theme's semantic tokens, which are calibrated for the
-    // dark background and turn near-invisible on this forced white card.
-    <section className="print-document rounded-xl border bg-white p-6 text-gray-900">
+    // On-screen fiscal status card for staff. Not what "Imprimir" prints —
+    // that's SaleReceiptPrintSheet, a portaled, fully isolated copy (see
+    // below), so this card is print:hidden to avoid printing it twice
+    // alongside the whole dashboard page around it.
+    <section className="print:hidden rounded-xl border bg-white p-6 text-gray-900">
       {isSimulated ? (
         <div className="mb-4 rounded-lg border border-destructive bg-red-50 p-3 text-center text-sm font-semibold text-destructive">
           NO VÁLIDA FISCALMENTE — MODO SIMULACIÓN
@@ -487,6 +490,136 @@ function InvoiceView({
         ) : null}
       </div>
     </section>
+  );
+}
+
+// The actual content of "Imprimir": a self-contained copy of the receipt,
+// portaled straight onto document.body (see #sale-receipt-print in
+// globals.css) so window.print() only ever outputs this — never the
+// dashboard chrome, buttons, or tables around it. Uses static Tailwind
+// colors throughout (never the theme's semantic tokens), so it can't go
+// invisible printing from dark mode the way a themed component could.
+function SaleReceiptPrintSheet({ sale }: { sale: Sale }) {
+  const invoice = sale.invoice;
+  if (!invoice) return null;
+
+  const isSimulated = invoice.fiscal_provider === 'MOCK';
+  const companyName =
+    snapshotText(invoice.company_snapshot, 'legal_name') ??
+    snapshotText(invoice.company_snapshot, 'name') ??
+    'Empresa';
+  const companyTaxId = snapshotText(invoice.company_snapshot, 'tax_id');
+  const companyEmail = snapshotText(invoice.company_snapshot, 'email');
+  const companyPhone = snapshotText(invoice.company_snapshot, 'phone');
+  const clientPersonName = invoice.client_snapshot
+    ? [
+        snapshotText(invoice.client_snapshot, 'first_name'),
+        snapshotText(invoice.client_snapshot, 'last_name'),
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : '';
+  const clientBusinessName = snapshotText(invoice.client_snapshot, 'business_name');
+  const clientName = invoice.client_snapshot
+    ? clientBusinessName || clientPersonName || 'Cliente'
+    : 'Consumidor final';
+  const clientTaxId = snapshotText(invoice.client_snapshot, 'tax_id');
+
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      id="sale-receipt-print"
+      className="hidden bg-white p-6 text-gray-900 print:block"
+    >
+      {isSimulated ? (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-center text-sm font-semibold text-red-600">
+          NO VÁLIDA FISCALMENTE — MODO SIMULACIÓN
+        </div>
+      ) : null}
+      <div className="border-b border-gray-300 pb-4 text-center">
+        <p className="text-xs font-semibold tracking-wide">
+          {invoice.document_label}
+        </p>
+        <h2 className="mt-2 text-xl font-semibold">{invoice.internal_number}</h2>
+      </div>
+      <div className="grid grid-cols-2 gap-4 py-4 text-sm">
+        <div>
+          <p className="font-medium">Empresa</p>
+          <p className="mt-1 text-gray-600">{companyName}</p>
+          {companyTaxId ? <p className="text-gray-600">CUIT: {companyTaxId}</p> : null}
+          {companyEmail ? <p className="text-gray-600">{companyEmail}</p> : null}
+          {companyPhone ? <p className="text-gray-600">{companyPhone}</p> : null}
+        </div>
+        <div>
+          <p className="font-medium">Cliente</p>
+          <p className="mt-1 text-gray-600">{clientName}</p>
+          {clientTaxId ? (
+            <p className="text-gray-600">CUIT/documento: {clientTaxId}</p>
+          ) : null}
+        </div>
+      </div>
+      <table className="w-full border-t border-gray-300 text-sm">
+        <thead>
+          <tr className="border-b border-gray-300 text-left text-gray-600">
+            <th className="py-2 font-medium">Producto</th>
+            <th className="py-2 font-medium">Cant.</th>
+            <th className="py-2 text-right font-medium">Precio</th>
+            <th className="py-2 text-right font-medium">Desc.</th>
+            <th className="py-2 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sale.sale_item.map((item) => (
+            <tr key={item.id} className="border-b border-gray-100">
+              <td className="py-2">
+                {item.product_name}
+                {item.variant_label ? ` · ${item.variant_label}` : ''}
+              </td>
+              <td className="py-2">
+                {item.quantity} {item.product.unit}
+              </td>
+              <td className="py-2 text-right">{currency(item.unit_price)}</td>
+              <td className="py-2 text-right">{item.discount_percent}%</td>
+              <td className="py-2 text-right">{currency(item.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <dl className="ml-auto grid max-w-sm grid-cols-2 gap-x-6 gap-y-1 border-t border-gray-300 pt-4 text-sm">
+        <dt className="text-gray-600">Subtotal</dt>
+        <dd className="text-right">{currency(sale.subtotal)}</dd>
+        <dt className="text-gray-600">Descuentos</dt>
+        <dd className="text-right">{currency(sale.discount_total)}</dd>
+        <dt className="text-gray-600">Impuestos</dt>
+        <dd className="text-right">{currency(sale.tax_total)}</dd>
+        <dt className="pt-2 text-base font-semibold">Total</dt>
+        <dd className="pt-2 text-right text-base font-semibold">
+          {currency(sale.total)}
+        </dd>
+      </dl>
+      <div className="mt-4 border-t border-gray-300 pt-4 text-sm">
+        <p className="font-medium">
+          Estado fiscal:{' '}
+          {FISCAL_STATUS_LABEL[invoice.fiscal_status] ?? invoice.fiscal_status}
+        </p>
+        <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1">
+          <dt className="text-gray-600">CAE</dt>
+          <dd>{invoice.cae ?? '—'}</dd>
+          <dt className="text-gray-600">Vencimiento CAE</dt>
+          <dd>{fiscalDate(invoice.cae_expiration)}</dd>
+          <dt className="text-gray-600">Punto de venta</dt>
+          <dd>{invoice.point_of_sale ?? '—'}</dd>
+          <dt className="text-gray-600">Comprobante fiscal</dt>
+          <dd>
+            {invoice.voucher_type_code && invoice.invoice_number
+              ? `${invoice.voucher_type_code}-${invoice.invoice_number}`
+              : '—'}
+          </dd>
+        </dl>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

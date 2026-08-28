@@ -226,6 +226,15 @@
   }
 }
 
+/* Same isolation for the sale receipt (see SaleReceiptPrintSheet in
+   sales/[id]/page.tsx) — printing a sale used to print the whole
+   dashboard page around it. */
+@media print {
+  body:has(#sale-receipt-print) > *:not(#sale-receipt-print) {
+    display: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }

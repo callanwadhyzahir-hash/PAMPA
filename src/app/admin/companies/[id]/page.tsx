@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LoaderCircle, ShieldOff, TriangleAlert } from "lucide-react";
+import { LoaderCircle, ShieldOff, Trash2, TriangleAlert } from "lucide-react";
 
 import { ErrorState, LoadingState } from "@/components/pampa-ui";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +49,8 @@ export default function AdminCompanyDetailPage() {
   const [company, setCompany] = useState<PlatformCompanyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState<"suspend" | "reactivate" | null>(null);
+  const [dialogOpen, setDialogOpen] = useState<"suspend" | "reactivate" | "delete" | null>(null);
+  const router = useRouter();
 
   async function load() {
     setLoading(true);
@@ -91,20 +92,30 @@ export default function AdminCompanyDetailPage() {
             {company.taxId ? ` · CUIT ${company.taxId}` : ""}
           </p>
         </div>
-        {company.isActive ? (
-          isOwnCompany ? (
-            <p className="max-w-xs text-caption leading-5 text-muted-foreground">
-              No podés suspender la empresa asociada a tu cuenta administrativa.
-            </p>
-          ) : (
-            <Button variant="destructive" onClick={() => setDialogOpen("suspend")}>
-              Suspender empresa
-            </Button>
-          )
+        {isOwnCompany ? (
+          <p className="max-w-xs text-caption leading-5 text-muted-foreground">
+            No podés suspender ni eliminar la empresa asociada a tu cuenta administrativa.
+          </p>
         ) : (
-          <Button variant="outline" onClick={() => setDialogOpen("reactivate")}>
-            Reactivar empresa
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {company.isActive ? (
+              <Button variant="destructive" onClick={() => setDialogOpen("suspend")}>
+                Suspender empresa
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => setDialogOpen("reactivate")}>
+                Reactivar empresa
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDialogOpen("delete")}
+            >
+              <Trash2 className="size-4" aria-hidden />
+              Eliminar empresa
+            </Button>
+          </div>
         )}
       </div>
 
@@ -177,7 +188,116 @@ export default function AdminCompanyDetailPage() {
           void load();
         }}
       />
+      <DeleteCompanyDialog
+        open={dialogOpen === "delete"}
+        company={company}
+        onOpenChange={(open) => setDialogOpen(open ? "delete" : null)}
+        onDone={() => router.push("/admin/companies")}
+      />
     </main>
+  );
+}
+
+function DeleteCompanyDialog({
+  open,
+  company,
+  onOpenChange,
+  onDone,
+}: {
+  open: boolean;
+  company: PlatformCompanyDetail;
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState("");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      setConfirmText("");
+      setReason("");
+      setError(null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
+  const canConfirm = confirmText.trim() === company.name;
+
+  async function confirm() {
+    if (submitting || !canConfirm) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await platformAdminService.deleteCompany(company.id, reason.trim() || undefined);
+      onDone();
+    } catch (reason_) {
+      setError(errorMessage(reason_));
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Trash2 className="size-4.5 text-destructive" aria-hidden />
+            Eliminar {company.name}
+          </DialogTitle>
+          <DialogDescription>
+            Esto borra <strong>permanentemente</strong> la empresa y todos sus datos: usuarios,
+            productos, ventas ({company.counts.sales}), pagos ({company.counts.payments}), stock,
+            clientes ({company.counts.clients}) y sucursales. No hay forma de deshacerlo.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label htmlFor="delete-confirm" className="text-sm font-medium">
+              Escribí <span className="font-mono">{company.name}</span> para confirmar
+            </label>
+            <Input
+              id="delete-confirm"
+              value={confirmText}
+              onChange={(event) => setConfirmText(event.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="delete-reason" className="text-sm font-medium">
+              Motivo <span className="text-muted-foreground">(opcional)</span>
+            </label>
+            <Input
+              id="delete-reason"
+              value={reason}
+              maxLength={500}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Ej. cuenta de prueba, baja solicitada por el cliente"
+            />
+          </div>
+        </div>
+        {error ? (
+          <p role="alert" className="text-body-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => void confirm()}
+            disabled={submitting || !canConfirm}
+          >
+            {submitting && <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+            Eliminar empresa
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

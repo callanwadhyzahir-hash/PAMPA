@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -20,6 +21,7 @@ import { PlatformAdminGuard } from '../auth/guards/platform-admin.guard';
 import type { SecurityContext } from '../auth/types/security-context';
 import { PlatformActivityQueryDto } from './dto/activity-query.dto';
 import { PlatformCompanyQueryDto } from './dto/company-query.dto';
+import { DeleteReasonDto } from './dto/delete-reason.dto';
 import { PlatformGrowthQueryDto } from './dto/growth-query.dto';
 import { PlatformUserQueryDto } from './dto/user-query.dto';
 import { UpdateCompanyStatusDto } from './dto/update-company-status.dto';
@@ -73,6 +75,15 @@ export class PlatformAdminController {
     return this.service.updateCompanyStatus(context, id, dto);
   }
 
+  @Delete('companies/:id')
+  deleteCompany(
+    @CurrentSecurityContext() context: SecurityContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeleteReasonDto,
+  ) {
+    return this.service.deleteCompany(context, id, dto);
+  }
+
   @Get('users')
   users(@Query() query: PlatformUserQueryDto) {
     return this.service.listUsers(query);
@@ -81,6 +92,15 @@ export class PlatformAdminController {
   @Get('users/:id')
   user(@Param('id', ParseUUIDPipe) id: string) {
     return this.service.getUser(id);
+  }
+
+  @Delete('users/:id')
+  deleteUser(
+    @CurrentSecurityContext() context: SecurityContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeleteReasonDto,
+  ) {
+    return this.service.deleteUser(context, id, dto);
   }
 
   @Get('activity')

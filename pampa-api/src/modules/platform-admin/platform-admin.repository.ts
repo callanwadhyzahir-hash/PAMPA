@@ -475,6 +475,64 @@ export class PlatformAdminRepository {
     return { id: company.id, name: company.name, isActive: company.is_active };
   }
 
+  // Deletes a company and every row that hangs off it. Order follows the
+  // RESTRICT foreign keys in schema.prisma bottom-up — tables with
+  // onDelete: Cascade/SetNull clean themselves up and are skipped here.
+  async deleteCompany(id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({
+        where: { id },
+        select: { id: true, name: true },
+      });
+      if (!company) return null;
+
+      const scope = { company_id: id };
+      await tx.invoice_fiscal_attempt.deleteMany({ where: scope });
+      await tx.invoice.deleteMany({ where: scope });
+      await tx.catalog_order.deleteMany({ where: scope });
+      await tx.catalog.deleteMany({ where: scope });
+      await tx.payment.deleteMany({ where: scope });
+      await tx.stock.deleteMany({ where: scope });
+      await tx.stock_movement.deleteMany({ where: scope });
+      await tx.mercadolibre_connection.deleteMany({ where: scope });
+      await tx.sale.deleteMany({ where: scope });
+      await tx.product.deleteMany({ where: scope });
+      await tx.product_category.deleteMany({ where: scope });
+      await tx.role.deleteMany({ where: scope });
+      await tx.user.deleteMany({ where: scope });
+      await tx.client.deleteMany({ where: scope });
+      await tx.warehouse.deleteMany({ where: scope });
+      await tx.branch.deleteMany({ where: scope });
+      await tx.company.delete({ where: { id } });
+
+      return company;
+    });
+  }
+
+  // A user can only be hard-deleted if they never authored business
+  // records (sales, payments, stock movements) — deleting them would tear
+  // out real transaction history. Otherwise: deactivate instead.
+  async userDeleteBlockers(id: string) {
+    const [sales, payments, stockMovements] = await Promise.all([
+      this.prisma.sale.count({ where: { user_id: id } }),
+      this.prisma.payment.count({ where: { created_by: id } }),
+      this.prisma.stock_movement.count({ where: { created_by: id } }),
+    ]);
+    return { sales, payments, stockMovements };
+  }
+
+  async deleteUser(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, first_name: true, last_name: true, email: true },
+    });
+    if (!user) return null;
+    // Everything else referencing user_id (session, tokens, platform_admin,
+    // user_role, user_onboarding_progress) is onDelete: Cascade/SetNull.
+    await this.prisma.user.delete({ where: { id } });
+    return user;
+  }
+
   async listUsers(filters: UserFilters) {
     const where: Prisma.userWhereInput = {
       ...(filters.status === 'ACTIVE' ? { is_active: true } : {}),

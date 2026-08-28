@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,7 @@ import { SecurityAuditService } from '../auth/audit/security-audit.service';
 import type { SecurityContext } from '../auth/types/security-context';
 import { PlatformActivityQueryDto } from './dto/activity-query.dto';
 import { PlatformCompanyQueryDto } from './dto/company-query.dto';
+import { DeleteReasonDto } from './dto/delete-reason.dto';
 import { PlatformGrowthQueryDto } from './dto/growth-query.dto';
 import { PlatformUserQueryDto } from './dto/user-query.dto';
 import { UpdateCompanyStatusDto } from './dto/update-company-status.dto';
@@ -201,6 +203,59 @@ export class PlatformAdminService {
     });
 
     return company;
+  }
+
+  async deleteCompany(
+    context: SecurityContext,
+    id: string,
+    dto: DeleteReasonDto,
+  ) {
+    if (id === context.companyId) {
+      throw new ForbiddenException(
+        'No podés eliminar la empresa a la que pertenece tu propia cuenta.',
+      );
+    }
+
+    const company = await this.repository.deleteCompany(id);
+    if (!company) throw new NotFoundException('Empresa no encontrada.');
+
+    await this.audit.record({
+      companyId: id,
+      actorUserId: context.userId,
+      eventType: 'COMPANY_DELETED',
+      result: 'SUCCESS',
+      metadata: { name: company.name, reason: dto.reason ?? null },
+    });
+
+    return company;
+  }
+
+  async deleteUser(context: SecurityContext, id: string, dto: DeleteReasonDto) {
+    if (id === context.userId) {
+      throw new ForbiddenException('No podés eliminar tu propia cuenta.');
+    }
+
+    const blockers = await this.repository.userDeleteBlockers(id);
+    const hasHistory =
+      blockers.sales > 0 || blockers.payments > 0 || blockers.stockMovements > 0;
+    if (hasHistory) {
+      throw new ConflictException(
+        'Este usuario tiene ventas, pagos o movimientos de stock a su nombre — no se puede eliminar sin perder ese historial. Desactivalo en su lugar.',
+      );
+    }
+
+    const user = await this.repository.deleteUser(id);
+    if (!user) throw new NotFoundException('Usuario no encontrado.');
+
+    await this.audit.record({
+      actorUserId: context.userId,
+      targetUserId: id,
+      eventType: 'USER_DELETED',
+      result: 'SUCCESS',
+      metadata: { email: user.email, reason: dto.reason ?? null },
+    });
+
+    return user;
   }
 
   async listUsers(query: PlatformUserQueryDto) {

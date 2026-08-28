@@ -241,6 +241,32 @@ export const platformAdminService = {
     ).data;
   },
 
+  async deleteCompany(id: string, reason?: string) {
+    return (
+      await apiFetch<ApiEnvelope<{ id: string; name: string }>>(
+        `/platform-admin/companies/${id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }),
+        },
+      )
+    ).data;
+  },
+
+  async deleteUser(id: string, reason?: string) {
+    return (
+      await apiFetch<ApiEnvelope<{ id: string; email: string }>>(
+        `/platform-admin/users/${id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }),
+        },
+      )
+    ).data;
+  },
+
   async listUsers(params?: {
     search?: string;
     status?: "ACTIVE" | "INACTIVE";

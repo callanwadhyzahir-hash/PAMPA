@@ -127,7 +127,9 @@ export function PampaAiPanel({ open, onOpenChange }: PampaAiPanelProps) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, status]);
 
-  const blocked = usage ? !usage.enabled || usage.percentageUsed >= 100 : false;
+  const disabled = usage ? !usage.enabled : false;
+  const quotaExceeded = usage ? usage.enabled && usage.percentageUsed >= 100 : false;
+  const blocked = disabled || quotaExceeded;
   const busy = status !== "idle";
 
   async function send(message: string) {
@@ -250,7 +252,11 @@ export function PampaAiPanel({ open, onOpenChange }: PampaAiPanelProps) {
         </div>
 
         <div className="border-t border-border p-3">
-          {blocked ? (
+          {disabled ? (
+            <div className="rounded-sm bg-destructive-bg px-3 py-2 text-caption text-destructive">
+              PAMPA IA no está habilitada para tu empresa.
+            </div>
+          ) : quotaExceeded ? (
             <div className="rounded-sm bg-destructive-bg px-3 py-2 text-caption text-destructive">
               Alcanzaste el límite mensual de PAMPA IA. El resto de PAMPA continúa funcionando
               normalmente.

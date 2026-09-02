@@ -2,20 +2,23 @@
 
 import { useState, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
+import { CheckCircle2, MessageCircle, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 
 import { ProductImage } from '@/components/pampa-ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { StorefrontApiError } from '@/lib/storefront-api';
+import { buildOrderWhatsAppMessage, buildWhatsAppUrl, normalizeWhatsappDigits } from '@/lib/whatsapp';
 import { storefrontService, type SubmitOrderResult } from '@/services/storefront/storefront.service';
 
 import { useCart } from '../_lib/cart-context';
+import { useCatalog } from '../_lib/catalog-context';
 
 export default function StorefrontCartPage() {
   const router = useRouter();
   const params = useParams<{ slug: string }>();
+  const { catalog } = useCatalog();
   const { items, setQuantity, remove, clear, removeMany } = useCart();
 
   const [name, setName] = useState('');
@@ -66,6 +69,21 @@ export default function StorefrontCartPage() {
   }
 
   if (result) {
+    const whatsappDigits = normalizeWhatsappDigits(catalog?.whatsapp);
+    const whatsappUrl = whatsappDigits
+      ? buildWhatsAppUrl(
+          whatsappDigits,
+          buildOrderWhatsAppMessage({
+            companyName: catalog?.displayName ?? 'la tienda',
+            orderNumber: result.orderNumber,
+            items: result.items,
+            total: result.total,
+            customerName: name,
+            customerPhone: phone,
+          }),
+        )
+      : null;
+
     return (
       <div className="flex flex-col items-center gap-4 px-6 pt-12 text-center">
         <CheckCircle2 className="size-14 text-success" aria-hidden="true" />
@@ -92,7 +110,22 @@ export default function StorefrontCartPage() {
             <span>${result.total}</span>
           </div>
         </div>
-        <Button type="button" variant="lime" onClick={() => router.push(`/c/${params.slug}`)}>
+        {whatsappUrl ? (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+          >
+            <MessageCircle className="size-4" aria-hidden="true" />
+            Continuar por WhatsApp
+          </a>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            El comercio no tiene WhatsApp configurado. Te van a contactar al teléfono que dejaste.
+          </p>
+        )}
+        <Button type="button" variant="outline" className="w-full" onClick={() => router.push(`/c/${params.slug}`)}>
           Seguir viendo el catálogo
         </Button>
       </div>

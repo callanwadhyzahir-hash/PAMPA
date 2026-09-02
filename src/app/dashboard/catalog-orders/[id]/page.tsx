@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Check, Mail, Phone, X } from 'lucide-react';
+import { ArrowLeft, Check, Mail, MessageCircle, Phone, X } from 'lucide-react';
 
 import { ErrorState, LoadingState, ProductPickerRow } from '@/components/pampa-ui';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuthSession } from '@/hooks/use-auth-session';
+import { buildWhatsAppUrl, normalizeWhatsappDigits } from '@/lib/whatsapp';
 import { ApiError } from '@/services/api';
 import {
   catalogOrdersService,
@@ -203,6 +204,25 @@ export default function CatalogOrderDetailPage() {
                   Vinculado al cliente {order.client.code} en PAMPA.
                 </p>
               ) : null}
+              {(() => {
+                const digits = normalizeWhatsappDigits(order.customer_phone);
+                if (!digits) return null;
+                const url = buildWhatsAppUrl(
+                  digits,
+                  `Hola ${order.customer_name}, te escribo por tu pedido PED-${order.order_number.padStart(8, '0')}.`,
+                );
+                return (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 flex w-fit items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                  >
+                    <MessageCircle className="size-3.5" aria-hidden="true" />
+                    Contactar por WhatsApp
+                  </a>
+                );
+              })()}
             </CardContent>
           </Card>
 

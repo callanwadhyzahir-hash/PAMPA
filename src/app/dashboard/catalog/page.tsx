@@ -416,6 +416,9 @@ export default function CatalogSettingsPage() {
                 placeholder="+54 9 11 1234-5678"
                 disabled={!canManage}
               />
+              <span className="block text-xs font-normal text-muted-foreground">
+                Los clientes lo van a usar para confirmar sus pedidos por WhatsApp.
+              </span>
             </label>
             <label className="space-y-1.5 text-sm font-medium">
               <span>Email de contacto (opcional)</span>

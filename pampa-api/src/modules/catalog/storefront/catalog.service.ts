@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -61,7 +62,7 @@ export class CatalogService {
       slug,
       displayName: this.required(input.displayName),
       description: this.optional(input.description),
-      whatsapp: this.optional(input.whatsapp),
+      whatsapp: this.normalizeWhatsapp(input.whatsapp),
       contactEmail: this.optional(input.contactEmail)?.toLocaleLowerCase(),
       isEnabled: input.isEnabled,
       showPrices: input.showPrices,
@@ -87,5 +88,22 @@ export class CatalogService {
   private optional(value?: string) {
     const normalized = value?.trim().replace(/\s+/g, ' ');
     return normalized || undefined;
+  }
+
+  /**
+   * Stores the WhatsApp number as bare digits (country code included, no
+   * spaces/dashes/parens) so it can be dropped straight into a wa.me link
+   * without re-parsing free-typed input later.
+   */
+  private normalizeWhatsapp(value?: string) {
+    const trimmed = value?.trim();
+    if (!trimmed) return undefined;
+    const digits = trimmed.replace(/[^\d]/g, '');
+    if (digits.length < 8 || digits.length > 15) {
+      throw new BadRequestException(
+        'El WhatsApp debe tener entre 8 y 15 dígitos, incluyendo el código de país (ej: 5491112345678).',
+      );
+    }
+    return digits;
   }
 }

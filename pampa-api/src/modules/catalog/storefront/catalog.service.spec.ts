@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import type { SecurityContext } from '../../auth/types/security-context';
 import { CatalogService } from './catalog.service';
@@ -88,6 +92,32 @@ describe('CatalogService', () => {
     expect(repository.upsert).toHaveBeenCalledWith(
       context.companyId,
       expect.objectContaining({ slug: 'mi-negocio', branchId: 'branch-a' }),
+    );
+  });
+
+  it('strips spaces/dashes from the WhatsApp number before persisting it', async () => {
+    await service.upsert(context, {
+      ...baseInput,
+      whatsapp: '+54 9 11 1234-5678',
+    });
+    expect(repository.upsert).toHaveBeenCalledWith(
+      context.companyId,
+      expect.objectContaining({ whatsapp: '5491112345678' }),
+    );
+  });
+
+  it('rejects a WhatsApp number with too few digits', async () => {
+    await expect(
+      service.upsert(context, { ...baseInput, whatsapp: '123' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.upsert).not.toHaveBeenCalled();
+  });
+
+  it('leaves the WhatsApp number unset when omitted', async () => {
+    await service.upsert(context, baseInput);
+    expect(repository.upsert).toHaveBeenCalledWith(
+      context.companyId,
+      expect.objectContaining({ whatsapp: undefined }),
     );
   });
 });

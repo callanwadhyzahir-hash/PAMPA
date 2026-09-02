@@ -192,6 +192,50 @@ export class ProductsService {
     return { updated };
   }
 
+  /** Used by Carga inteligente de stock to flag likely duplicates before import — see ProductRepository.findDuplicateCandidates. */
+  findDuplicateCandidates(
+    context: SecurityContext,
+    input: { barcodes: string[]; names: string[] },
+  ) {
+    return this.repository.findDuplicateCandidates(
+      context.companyId,
+      input.barcodes,
+      input.names,
+    );
+  }
+
+  /**
+   * Deterministic, human-readable SKU for a Carga inteligente de stock
+   * import — no AI call needed to name a product. Derives from the name
+   * (uppercased, accents stripped) and appends a numeric suffix only if
+   * that base is already taken, checked against the same uniqueness the
+   * manual create-product form enforces.
+   */
+  async generateCodeFromName(
+    context: SecurityContext,
+    name: string,
+  ): Promise<string> {
+    const base = name
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLocaleUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40);
+    const safeBase = base || 'PROD';
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const candidate = attempt === 0 ? safeBase : `${safeBase}-${attempt + 1}`;
+      const taken = await this.repository.findByCodeOrBarcode(
+        context.companyId,
+        candidate,
+      );
+      if (!taken) return candidate;
+    }
+    throw new ConflictException(
+      'No se pudo generar un código único para el producto. Asigná uno manualmente.',
+    );
+  }
+
   async findStock(context: SecurityContext, id: string) {
     await this.findOne(context, id);
     return this.repository.findStock(context.companyId, id);

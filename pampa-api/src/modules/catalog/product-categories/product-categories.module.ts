@@ -9,5 +9,6 @@ import { ProductCategoryRepository } from './repositories/product-category.repos
   imports: [SecurityAuditModule],
   controllers: [ProductCategoriesController],
   providers: [ProductCategoriesService, ProductCategoryRepository],
+  exports: [ProductCategoriesService],
 })
 export class ProductCategoriesModule {}

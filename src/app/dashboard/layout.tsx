@@ -15,6 +15,7 @@ import {
   Plug,
   ShieldCheck,
   ShoppingCart,
+  Sparkles,
   Store,
   Tags,
   Users,
@@ -92,6 +93,13 @@ const navigation: NavigationItem[] = [
     href: "/dashboard/stock",
     icon: Boxes,
     permission: "stock.read",
+    section: "Inventario",
+  },
+  {
+    label: "Carga inteligente",
+    href: "/dashboard/inventory/smart-import",
+    icon: Sparkles,
+    permission: "products.create",
     section: "Inventario",
   },
   {

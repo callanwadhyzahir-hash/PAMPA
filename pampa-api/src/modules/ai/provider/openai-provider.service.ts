@@ -54,6 +54,9 @@ export class OpenAiProvider implements AiProvider {
         ...(request.tools?.length
           ? { tools: request.tools.map(toOpenAiTool), tool_choice: 'auto' }
           : {}),
+        ...(request.responseFormat === 'json'
+          ? { response_format: { type: 'json_object' } }
+          : {}),
       });
     } catch (error) {
       // Never log error.message/response body: it can echo request content
@@ -95,7 +98,22 @@ function toOpenAiMessage(message: AiMessage): ChatMessage {
     case 'system':
       return { role: 'system', content: message.content };
     case 'user':
-      return { role: 'user', content: message.content };
+      return {
+        role: 'user',
+        content:
+          typeof message.content === 'string'
+            ? message.content
+            : message.content.map((part) =>
+                part.type === 'text'
+                  ? { type: 'text' as const, text: part.text }
+                  : {
+                      type: 'image_url' as const,
+                      image_url: {
+                        url: `data:${part.mimeType};base64,${part.dataBase64}`,
+                      },
+                    },
+              ),
+      };
     case 'assistant':
       return {
         role: 'assistant',

@@ -28,6 +28,6 @@ import { ProductVariantRepository } from './variants/repositories/product-varian
     ProductVariantsService,
     ProductVariantRepository,
   ],
-  exports: [ProductsService],
+  exports: [ProductsService, ProductVariantsService],
 })
 export class ProductsModule {}

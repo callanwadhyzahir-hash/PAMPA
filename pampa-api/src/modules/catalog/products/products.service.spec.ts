@@ -65,6 +65,7 @@ describe('ProductsService', () => {
     findByBarcode: jest.fn(),
     existsByBarcode: jest.fn(),
     findByCodeOrBarcode: jest.fn(),
+    findDuplicateCandidates: jest.fn(),
     findActiveCategory: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -230,5 +231,51 @@ describe('ProductsService', () => {
         salePrice: 150,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  describe('generateCodeFromName — Carga inteligente de stock', () => {
+    it('derives an uppercase, accent-stripped code from the product name', async () => {
+      const code = await service.generateCodeFromName(context, 'Remera Ñañá');
+      expect(code).toBe('REMERA-NANA');
+    });
+
+    it('appends a numeric suffix when the base code is already taken', async () => {
+      repository.findByCodeOrBarcode
+        .mockResolvedValueOnce({ id: 'x', code: 'REMERA', barcode: null })
+        .mockResolvedValueOnce(null);
+
+      const code = await service.generateCodeFromName(context, 'Remera');
+
+      expect(code).toBe('REMERA-2');
+    });
+
+    it('throws when every candidate up to the attempt limit is already taken', async () => {
+      repository.findByCodeOrBarcode.mockResolvedValue({
+        id: 'x',
+        code: 'X',
+        barcode: null,
+      });
+
+      await expect(
+        service.generateCodeFromName(context, 'Remera'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('findDuplicateCandidates — Carga inteligente de stock', () => {
+    it('delegates to the repository scoped by the authenticated company', async () => {
+      repository.findDuplicateCandidates.mockResolvedValue([]);
+
+      await service.findDuplicateCandidates(context, {
+        barcodes: ['779001'],
+        names: ['Remera'],
+      });
+
+      expect(repository.findDuplicateCandidates).toHaveBeenCalledWith(
+        'company-a',
+        ['779001'],
+        ['Remera'],
+      );
+    });
   });
 });

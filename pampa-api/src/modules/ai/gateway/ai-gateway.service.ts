@@ -8,12 +8,15 @@ import { AiConfigService } from '../ai.config';
 import {
   AiCostLimitExceededError,
   AiDomainError,
+  AiInvalidResponseError,
   AiProviderError,
   AiProviderNotConfiguredError,
   AiRateLimitedError,
 } from '../ai.errors';
 import { AiCreditsService } from '../credits/ai-credits.service';
 import { AiPricingService } from '../pricing/ai-pricing.service';
+import { GeminiProvider } from '../provider/gemini-provider.service';
+import { OpenAiProvider } from '../provider/openai-provider.service';
 import type { AiToolCall } from '../provider/ai-tool.interface';
 import { AI_PROVIDER } from '../provider/ai-provider.token';
 import type {
@@ -28,6 +31,12 @@ import {
 import { AiSubscriptionService } from '../subscription/ai-subscription.service';
 import { AiToolRegistry } from '../tools/ai-tool-registry';
 import { AiUsageRepository } from '../usage/ai-usage.repository';
+import { AI_EXTRACTION_SYSTEM_PROMPT } from './ai-extraction-prompt';
+import {
+  parseExtractionResponse,
+  type AiExtractionInput,
+  type AiExtractionResult,
+} from './ai-extraction.types';
 import { AI_SYSTEM_PROMPT } from './ai-system-prompt';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -35,6 +44,8 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const CHARS_PER_TOKEN_ESTIMATE = 3;
 /** Conservative per-round input-token budget for tool results appended to the transcript, since a request may execute tools across multiple rounds — see estimateWorstCase(). Tool outputs are minimized (see docs/pampa-ai-architecture.md §Contexto) so this comfortably bounds them. */
 const TOOL_RESULT_TOKEN_BUDGET_PER_ROUND = 400;
+/** Worst-case input-token reservation for one image in an extraction request — both Gemini and OpenAI charge a few hundred to ~1500 tokens per image depending on resolution; this is a deliberately generous upper bound for the pre-call quota hold, never for billing (the real cost comes from the provider's actual usage). */
+const EXTRACTION_IMAGE_TOKEN_ESTIMATE = 1500;
 /** Argument keys a tool handler must never see, even if the model produced them — security context always comes from the authenticated request, never from model-generated arguments (see docs/pampa-ai-architecture.md §Seguridad). */
 const FORBIDDEN_TOOL_ARG_KEYS = [
   'company_id',
@@ -100,6 +111,13 @@ export class AiGatewayService {
     private readonly audit: SecurityAuditService,
     private readonly tools: AiToolRegistry,
     @Inject(AI_PROVIDER) private readonly provider: AiProvider,
+    /**
+     * Extraction (extractProducts) picks between these two directly instead
+     * of going through AI_PROVIDER, since it needs Gemini-first-with-
+     * OpenAI-fallback regardless of which provider chat() is bound to.
+     */
+    private readonly openAiProvider: OpenAiProvider,
+    private readonly geminiProvider: GeminiProvider,
   ) {}
 
   async chat(
@@ -272,6 +290,229 @@ export class AiGatewayService {
         result: 'FAILURE',
       });
       throw error instanceof AiDomainError ? error : new AiProviderError();
+    }
+  }
+
+  /**
+   * Carga inteligente de stock: single-shot structured extraction (no tool
+   * loop, no conversation history) with Gemini as primary provider and a
+   * single OpenAI fallback — only on a provider-side failure (network,
+   * timeout, malformed output), never on the user's own text/image being
+   * ambiguous (see docs/pampa-ai-architecture.md §Contexto and the
+   * feature's cost-minimization requirement: a bad photo doesn't deserve a
+   * second billed call). Quota is checked and reserved before EVERY
+   * provider call this makes, including the fallback one.
+   */
+  async extractProducts(
+    context: SecurityContext,
+    input: AiExtractionInput,
+  ): Promise<AiExtractionResult> {
+    await this.subscriptions.requireEnabled(context.companyId);
+    if (!this.config.configured && !this.config.geminiConfigured) {
+      throw new AiProviderNotConfiguredError();
+    }
+    await this.enforceExtractionRateLimit(context);
+
+    const messages = this.buildExtractionMessages(input);
+    const primary = this.config.geminiConfigured
+      ? this.geminiProvider
+      : this.openAiProvider;
+    const secondary =
+      primary === this.geminiProvider && this.config.configured
+        ? this.openAiProvider
+        : primary === this.openAiProvider && this.config.geminiConfigured
+          ? this.geminiProvider
+          : null;
+
+    try {
+      return await this.callExtractionProvider(
+        context,
+        primary,
+        messages,
+        input,
+      );
+    } catch (error) {
+      const canFallback =
+        secondary !== null &&
+        (error instanceof AiProviderError ||
+          error instanceof AiInvalidResponseError);
+      if (!canFallback) throw error;
+      return await this.callExtractionProvider(
+        context,
+        secondary,
+        messages,
+        input,
+      );
+    }
+  }
+
+  private buildExtractionMessages(input: AiExtractionInput): AiMessage[] {
+    const userContent: AiMessage & { role: 'user' } = input.image
+      ? {
+          role: 'user',
+          content: [
+            ...(input.text
+              ? [{ type: 'text' as const, text: input.text }]
+              : []),
+            {
+              type: 'image' as const,
+              mimeType: input.image.mimeType,
+              dataBase64: input.image.dataBase64,
+            },
+          ],
+        }
+      : { role: 'user', content: input.text ?? '' };
+
+    return [
+      { role: 'system', content: AI_EXTRACTION_SYSTEM_PROMPT },
+      userContent,
+    ];
+  }
+
+  private async callExtractionProvider(
+    context: SecurityContext,
+    provider: AiProvider,
+    messages: AiMessage[],
+    input: AiExtractionInput,
+  ): Promise<AiExtractionResult> {
+    const estimate = this.estimateExtractionWorstCase(provider, input);
+    await this.reserveQuota(context, estimate);
+
+    let usage = zeroUsage();
+    let costUsd = new Prisma.Decimal(0);
+    let credits = new Prisma.Decimal(0);
+    let resultModel = this.config.generalModel;
+
+    try {
+      const result = await provider.complete({
+        messages,
+        maxOutputTokens: this.config.extractionMaxOutputTokens,
+        responseFormat: 'json',
+      });
+      usage = result.usage;
+      resultModel = result.model;
+      costUsd = this.pricing.calculate({
+        provider: provider.name,
+        model: result.model,
+        inputTokens: usage.inputTokens,
+        cachedInputTokens: usage.cachedInputTokens,
+        outputTokens: usage.outputTokens,
+      });
+      credits = this.credits.toCredits(costUsd);
+
+      const parsed = parseExtractionResponse(result.content, provider.name);
+
+      await this.quota.settle(context.companyId, estimate, {
+        credits,
+        costUsd,
+      });
+      await this.usage.record({
+        companyId: context.companyId,
+        userId: context.userId,
+        provider: provider.name,
+        model: resultModel,
+        operation: 'stock_extraction',
+        inputTokens: usage.inputTokens,
+        cachedInputTokens: usage.cachedInputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        estimatedCostUsd: costUsd,
+        creditsUsed: credits,
+        status: 'SUCCESS',
+      });
+      await this.audit.record({
+        companyId: context.companyId,
+        actorUserId: context.userId,
+        sessionId: context.sessionId,
+        eventType: 'AI_REQUEST',
+        result: 'SUCCESS',
+        metadata: { operation: 'stock_extraction', provider: provider.name },
+      });
+      return parsed;
+    } catch (error) {
+      if (costUsd.isZero()) {
+        await this.quota.release(context.companyId, estimate);
+      } else {
+        await this.quota.settle(context.companyId, estimate, {
+          credits,
+          costUsd,
+        });
+      }
+      await this.usage.record({
+        companyId: context.companyId,
+        userId: context.userId,
+        provider: provider.name,
+        model: resultModel,
+        operation: 'stock_extraction',
+        inputTokens: usage.inputTokens,
+        cachedInputTokens: usage.cachedInputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        estimatedCostUsd: costUsd,
+        creditsUsed: credits,
+        status: 'ERROR',
+        errorCode:
+          error instanceof AiDomainError
+            ? errorCodeOf(error)
+            : 'AI_PROVIDER_ERROR',
+      });
+      await this.audit.record({
+        companyId: context.companyId,
+        actorUserId: context.userId,
+        sessionId: context.sessionId,
+        eventType: 'AI_PROVIDER_ERROR',
+        result: 'FAILURE',
+        metadata: { operation: 'stock_extraction', provider: provider.name },
+      });
+      throw error instanceof AiDomainError ? error : new AiProviderError();
+    }
+  }
+
+  private estimateExtractionWorstCase(
+    provider: AiProvider,
+    input: AiExtractionInput,
+  ): AiQuotaEstimate {
+    const textChars =
+      (input.text?.length ?? 0) + AI_EXTRACTION_SYSTEM_PROMPT.length;
+    const estimatedInputTokens =
+      Math.ceil(textChars / CHARS_PER_TOKEN_ESTIMATE) +
+      (input.image ? EXTRACTION_IMAGE_TOKEN_ESTIMATE : 0);
+    const model =
+      provider === this.geminiProvider
+        ? this.config.geminiModel
+        : this.config.generalModel;
+    const costUsd = this.pricing.estimateMax({
+      provider: provider.name,
+      model,
+      estimatedInputTokens,
+      maxOutputTokens: this.config.extractionMaxOutputTokens,
+    });
+    return { credits: this.credits.toCredits(costUsd), costUsd };
+  }
+
+  private async enforceExtractionRateLimit(context: SecurityContext) {
+    try {
+      await this.rateLimit.consume({
+        action: 'ai.extract.company',
+        key: context.companyId,
+        limit: this.config.rateLimitCompanyPerMinute,
+        windowMs: RATE_LIMIT_WINDOW_MS,
+      });
+      await this.rateLimit.consume({
+        action: 'ai.extract.user',
+        key: context.userId,
+        limit: this.config.rateLimitUserPerMinute,
+        windowMs: RATE_LIMIT_WINDOW_MS,
+      });
+    } catch {
+      await this.audit.record({
+        companyId: context.companyId,
+        actorUserId: context.userId,
+        sessionId: context.sessionId,
+        eventType: 'AI_RATE_LIMITED',
+        result: 'BLOCKED',
+      });
+      throw new AiRateLimitedError();
     }
   }
 

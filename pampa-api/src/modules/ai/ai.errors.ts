@@ -71,3 +71,14 @@ export class AiProviderError extends AiDomainError {
     );
   }
 }
+
+/** The provider responded successfully but the content wasn't the structured JSON an extraction call required (malformed JSON, wrong shape, empty result). Distinct from AiProviderError — the request reached the provider and got billed. */
+export class AiInvalidResponseError extends AiDomainError {
+  constructor() {
+    super(
+      'AI_INVALID_RESPONSE',
+      'PAMPA IA no pudo interpretar la información. Probá con un texto o una imagen más clara.',
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
+  }
+}

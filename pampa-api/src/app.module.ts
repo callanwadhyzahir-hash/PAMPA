@@ -15,6 +15,7 @@ import { ProductCategoriesModule } from './modules/catalog/product-categories/pr
 import { ProductsModule } from './modules/catalog/products/products.module';
 import { WarehousesModule } from './modules/inventory/warehouses/warehouses.module';
 import { StockModule } from './modules/inventory/stock/stock.module';
+import { SmartImportModule } from './modules/inventory/smart-import/smart-import.module';
 import { ClientsModule } from './modules/commercial/clients/clients.module';
 import { SalesModule } from './modules/commercial/sales/sales.module';
 import { PaymentsModule } from './modules/commercial/payments/payments.module';
@@ -49,6 +50,7 @@ import { HealthController } from './health.controller';
     ProductsModule,
     WarehousesModule,
     StockModule,
+    SmartImportModule,
     ClientsModule,
     SalesModule,
     PaymentsModule,

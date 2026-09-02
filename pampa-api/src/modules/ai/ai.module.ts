@@ -14,6 +14,7 @@ import { AiCreditsService } from './credits/ai-credits.service';
 import { AiGatewayService } from './gateway/ai-gateway.service';
 import { AiPricingService } from './pricing/ai-pricing.service';
 import { AI_PROVIDER } from './provider/ai-provider.token';
+import { GeminiProvider } from './provider/gemini-provider.service';
 import { OpenAiProvider } from './provider/openai-provider.service';
 import { AiQuotaService } from './quota/ai-quota.service';
 import { AiSubscriptionRepository } from './subscription/ai-subscription.repository';
@@ -53,6 +54,7 @@ import { AiUsageRepository } from './usage/ai-usage.repository';
     AiUsageRepository,
     RateLimitService,
     OpenAiProvider,
+    GeminiProvider,
     { provide: AI_PROVIDER, useExisting: OpenAiProvider },
     AiToolRegistry,
     AiToolsRepository,
@@ -60,5 +62,6 @@ import { AiUsageRepository } from './usage/ai-usage.repository';
     AiGatewayService,
     AiAdminService,
   ],
+  exports: [AiGatewayService, AiSubscriptionService],
 })
 export class AiModule {}

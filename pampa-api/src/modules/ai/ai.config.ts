@@ -9,6 +9,8 @@ import { Prisma } from '@prisma/client';
  */
 export const AI_MODELS = {
   GENERAL: 'gpt-5-mini',
+  /** Multimodal extraction (Carga inteligente de stock) — cheap, vision-capable. gemini-2.5-flash was retired for new API keys as of Sept 2026; verified against the live API. */
+  GEMINI_EXTRACTION: 'gemini-3.6-flash',
 } as const;
 
 export const AI_PROVIDER_NAME = 'openai';
@@ -28,9 +30,16 @@ export class AiConfigService {
   readonly generalModel: string = AI_MODELS.GENERAL;
   readonly providerName: string = AI_PROVIDER_NAME;
 
+  private readonly geminiApiKey?: string;
+  /** Whether GeminiProvider can be called — independent of `configured` (OpenAI). Extraction picks whichever provider(s) are configured. */
+  readonly geminiConfigured: boolean;
+  readonly geminiModel: string = AI_MODELS.GEMINI_EXTRACTION;
+
   /** USD value of one PAMPA IA credit. Credits = cost_usd / creditValueUsd — see AiCreditsService. */
   readonly creditValueUsd: Prisma.Decimal;
   readonly chatMaxOutputTokens: number;
+  /** Extraction responses are compact JSON, not prose — usually smaller than a chat reply, but a long product list needs headroom. */
+  readonly extractionMaxOutputTokens: number;
   readonly rateLimitCompanyPerMinute: number;
   readonly rateLimitUserPerMinute: number;
 
@@ -46,11 +55,16 @@ export class AiConfigService {
   constructor(config: ConfigService) {
     this.apiKey = config.get<string>('OPENAI_API_KEY') || undefined;
     this.configured = Boolean(this.apiKey);
+    this.geminiApiKey = config.get<string>('GEMINI_API_KEY') || undefined;
+    this.geminiConfigured = Boolean(this.geminiApiKey);
     this.creditValueUsd = new Prisma.Decimal(
       config.get<string>('AI_CREDIT_VALUE_USD') || '0.001',
     );
     this.chatMaxOutputTokens = Number(
       config.get<string>('AI_CHAT_MAX_OUTPUT_TOKENS') || 700,
+    );
+    this.extractionMaxOutputTokens = Number(
+      config.get<string>('AI_EXTRACTION_MAX_OUTPUT_TOKENS') || 4000,
     );
     this.rateLimitCompanyPerMinute = Number(
       config.get<string>('AI_RATE_LIMIT_COMPANY_PER_MINUTE') || 20,
@@ -78,5 +92,15 @@ export class AiConfigService {
       );
     }
     return this.apiKey;
+  }
+
+  /** Only GeminiProvider may call this, and only after checking `geminiConfigured`. */
+  requireGeminiApiKey(): string {
+    if (!this.geminiApiKey) {
+      throw new Error(
+        'AiConfigService.requireGeminiApiKey() called without GEMINI_API_KEY — caller must check `geminiConfigured` first.',
+      );
+    }
+    return this.geminiApiKey;
   }
 }

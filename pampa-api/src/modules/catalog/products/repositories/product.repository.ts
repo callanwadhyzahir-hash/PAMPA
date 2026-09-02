@@ -136,6 +136,40 @@ export class ProductRepository {
     });
   }
 
+  /**
+   * One batch query for Carga inteligente de stock's duplicate detection —
+   * every extracted barcode (exact) and name (fuzzy) in a single round
+   * trip, instead of a query per line item. Callers match candidates back
+   * to their own items themselves; this just narrows the company's catalog
+   * down to what's worth comparing against.
+   */
+  findDuplicateCandidates(
+    companyId: string,
+    barcodes: string[],
+    names: string[],
+  ) {
+    if (barcodes.length === 0 && names.length === 0) return Promise.resolve([]);
+    return this.prisma.product.findMany({
+      where: {
+        company_id: companyId,
+        OR: [
+          ...(barcodes.length ? [{ barcode: { in: barcodes } }] : []),
+          ...(names.length
+            ? [
+                {
+                  OR: names.map((name) => ({
+                    name: { contains: name, mode: 'insensitive' as const },
+                  })),
+                },
+              ]
+            : []),
+        ],
+      },
+      select: { id: true, code: true, barcode: true, name: true },
+      take: 200,
+    });
+  }
+
   findActiveCategory(companyId: string, id: string) {
     return this.prisma.product_category.findFirst({
       where: { id, company_id: companyId, is_active: true },

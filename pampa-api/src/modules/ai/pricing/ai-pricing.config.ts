@@ -36,4 +36,27 @@ export const AI_PRICING_TABLE: readonly AiPriceEntry[] = [
     cachedInputPerMillion: 0.025,
     outputPerMillion: 2.0,
   },
+  {
+    // SOURCE: https://ai.google.dev/gemini-api/docs/pricing — verificado en
+    // vivo 2026-09-02 (gemini-2.5-flash ya no está disponible para API keys
+    // nuevas; Google migró al tier actual gemini-3.6-flash). Precio
+    // promocional vigente hasta 2026-12-31: input USD 0.75/1M tokens, cache
+    // USD 0.075/1M, output USD 3.75/1M (incluye tokens de "thinking"). Sube
+    // a 1.50/0.15/7.50 desde 2027-01-01 — agregar una entrada nueva ese día,
+    // nunca editar esta.
+    provider: 'gemini',
+    model: 'gemini-3.6-flash',
+    effectiveFrom: '2026-09-02',
+    inputPerMillion: 0.75,
+    cachedInputPerMillion: 0.075,
+    outputPerMillion: 3.75,
+  },
+  {
+    provider: 'gemini',
+    model: 'gemini-3.6-flash',
+    effectiveFrom: '2027-01-01',
+    inputPerMillion: 1.5,
+    cachedInputPerMillion: 0.15,
+    outputPerMillion: 7.5,
+  },
 ];

@@ -113,6 +113,35 @@ describe('CatalogService', () => {
     expect(repository.upsert).not.toHaveBeenCalled();
   });
 
+  it('adds the country code and mobile "9" to a bare local AR number', async () => {
+    // Regression: without this, wa.me reads the "11" area code as country
+    // code "+1" and opens a nonexistent US contact instead of the merchant.
+    await service.upsert(context, { ...baseInput, whatsapp: '11 5869-6318' });
+    expect(repository.upsert).toHaveBeenCalledWith(
+      context.companyId,
+      expect.objectContaining({ whatsapp: '5491158696318' }),
+    );
+  });
+
+  it('adds the missing mobile "9" when the country code is present but "9" was left out', async () => {
+    await service.upsert(context, {
+      ...baseInput,
+      whatsapp: '+54 11 1234-5678',
+    });
+    expect(repository.upsert).toHaveBeenCalledWith(
+      context.companyId,
+      expect.objectContaining({ whatsapp: '5491112345678' }),
+    );
+  });
+
+  it('drops the trunk "0" from a local number written with it', async () => {
+    await service.upsert(context, { ...baseInput, whatsapp: '011 5869-6318' });
+    expect(repository.upsert).toHaveBeenCalledWith(
+      context.companyId,
+      expect.objectContaining({ whatsapp: '5491158696318' }),
+    );
+  });
+
   it('leaves the WhatsApp number unset when omitted', async () => {
     await service.upsert(context, baseInput);
     expect(repository.upsert).toHaveBeenCalledWith(

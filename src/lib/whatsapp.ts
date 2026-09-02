@@ -1,14 +1,37 @@
 const MIN_DIGITS = 8;
 const MAX_DIGITS = 15;
+// A local AR number (area code + subscriber, no country code) is at most
+// this many digits — e.g. Buenos Aires "11 5869 6318" is 10. Above this we
+// can no longer tell a bare local number from a full foreign number, so we
+// leave it untouched rather than guess.
+const MAX_LOCAL_AR_DIGITS = 11;
 
 /**
- * Strips a free-typed phone number down to the digits wa.me expects.
- * Returns null when there aren't enough digits to be a real number, so
- * callers never build a WhatsApp link out of garbage input.
+ * Strips a free-typed phone number down to the digits wa.me expects, and
+ * fixes it up into the country-code-plus-9 shape WhatsApp requires for
+ * Argentine mobiles (PAMPA is an AR-only product — every merchant and
+ * customer number here is Argentine). Without the leading "549", wa.me
+ * misreads the area code as a country code (e.g. "1158696318" opens as
+ * +1 158-696-318, a US number that "isn't on WhatsApp"), which is the
+ * actual bug this normalization exists to prevent — not just cosmetics.
+ * Returns null when there aren't enough digits to be a real number.
  */
 export function normalizeWhatsappDigits(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const digits = raw.replace(/[^\d]/g, '');
+  let digits = raw.replace(/[^\d]/g, '');
+  if (!digits) return null;
+
+  if (digits.startsWith('00')) digits = digits.slice(2);
+
+  if (digits.startsWith('54')) {
+    let rest = digits.slice(2);
+    if (!rest.startsWith('9')) rest = `9${rest}`;
+    digits = `54${rest}`;
+  } else if (digits.length <= MAX_LOCAL_AR_DIGITS) {
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    digits = `549${digits}`;
+  }
+
   if (digits.length < MIN_DIGITS || digits.length > MAX_DIGITS) return null;
   return digits;
 }

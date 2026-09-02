@@ -91,17 +91,30 @@ export class CatalogService {
   }
 
   /**
-   * Stores the WhatsApp number as bare digits (country code included, no
-   * spaces/dashes/parens) so it can be dropped straight into a wa.me link
-   * without re-parsing free-typed input later.
+   * Stores the WhatsApp number as bare digits, fixed up into the
+   * country-code-plus-9 shape WhatsApp requires for Argentine mobiles
+   * (PAMPA is AR-only). Without the leading "549", wa.me misreads a local
+   * area code as a country code — e.g. "1158696318" opens as +1
+   * 158-696-318, a US number that "isn't on WhatsApp" — so this recovers
+   * the intended number from what merchants naturally type (local format,
+   * no country code) rather than just rejecting it.
    */
   private normalizeWhatsapp(value?: string) {
     const trimmed = value?.trim();
     if (!trimmed) return undefined;
-    const digits = trimmed.replace(/[^\d]/g, '');
+    let digits = trimmed.replace(/[^\d]/g, '');
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    if (digits.startsWith('54')) {
+      let rest = digits.slice(2);
+      if (!rest.startsWith('9')) rest = `9${rest}`;
+      digits = `54${rest}`;
+    } else if (digits.length <= 11) {
+      if (digits.startsWith('0')) digits = digits.slice(1);
+      digits = `549${digits}`;
+    }
     if (digits.length < 8 || digits.length > 15) {
       throw new BadRequestException(
-        'El WhatsApp debe tener entre 8 y 15 dígitos, incluyendo el código de país (ej: 5491112345678).',
+        'El WhatsApp debe tener entre 8 y 15 dígitos, incluyendo el código de área (ej: 11 1234-5678).',
       );
     }
     return digits;

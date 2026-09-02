@@ -31,6 +31,14 @@ export interface AiToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
+  /**
+   * Provider-private data that must be echoed back verbatim alongside this
+   * exact call on the next turn — e.g. Gemini's thoughtSignature, required
+   * on the follow-up request or the API rejects it (INVALID_ARGUMENT).
+   * Opaque to AiGatewayService and every tool handler; only the AiProvider
+   * that produced it ever reads it back.
+   */
+  providerMetadata?: unknown;
 }
 
 /** The outcome of executing one AiToolCall, fed back to the model as a `tool` message. `content` must already be minimal/serializable — see docs/pampa-ai-architecture.md §Contexto. */

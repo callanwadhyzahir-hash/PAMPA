@@ -88,15 +88,26 @@ export class GeminiProvider implements AiProvider {
       throw new AiProviderError();
     }
 
-    const functionCalls = response.functionCalls ?? [];
+    // Reading response.functionCalls (a convenience getter over parts) would
+    // silently drop thoughtSignature — a sibling field on the same Part,
+    // not on FunctionCall itself, that Gemini requires echoed back verbatim
+    // on the next turn or it rejects the request with INVALID_ARGUMENT
+    // (verified live against the real API). Reading parts directly keeps
+    // the two paired.
+    const functionCallParts = (
+      response.candidates?.[0]?.content?.parts ?? []
+    ).filter(
+      (part): part is Part & { functionCall: FunctionCall } =>
+        part.functionCall !== undefined,
+    );
     const usage = response.usageMetadata;
 
     return {
       model: response.modelVersion ?? this.config.geminiModel,
-      content: functionCalls.length > 0 ? null : (response.text ?? null),
-      toolCalls: functionCalls.map(toAiToolCall),
+      content: functionCallParts.length > 0 ? null : (response.text ?? null),
+      toolCalls: functionCallParts.map(toAiToolCall),
       finishReason: toFinishReason(
-        functionCalls.length > 0,
+        functionCallParts.length > 0,
         response.candidates?.[0]?.finishReason,
       ),
       usage: {
@@ -135,8 +146,10 @@ function toGeminiContent(
       const parts: Part[] = [];
       if (message.content) parts.push({ text: message.content });
       for (const call of message.toolCalls ?? []) {
+        const thoughtSignature = thoughtSignatureOf(call.providerMetadata);
         parts.push({
           functionCall: { id: call.id, name: call.name, args: call.arguments },
+          ...(thoughtSignature ? { thoughtSignature } : {}),
         });
       }
       return { role: 'model', parts };
@@ -196,12 +209,25 @@ function toGeminiTool(tool: AiToolDefinition): FunctionDeclaration {
   };
 }
 
-function toAiToolCall(call: FunctionCall): AiToolCall {
+function toAiToolCall(part: Part & { functionCall: FunctionCall }): AiToolCall {
+  const call = part.functionCall;
   return {
     id: call.id ?? call.name ?? 'call',
     name: call.name ?? '',
     arguments: call.args ?? {},
+    providerMetadata: part.thoughtSignature
+      ? { thoughtSignature: part.thoughtSignature }
+      : undefined,
   };
+}
+
+function thoughtSignatureOf(metadata: unknown): string | undefined {
+  return typeof metadata === 'object' &&
+    metadata !== null &&
+    typeof (metadata as { thoughtSignature?: unknown }).thoughtSignature ===
+      'string'
+    ? (metadata as { thoughtSignature: string }).thoughtSignature
+    : undefined;
 }
 
 function toFinishReason(

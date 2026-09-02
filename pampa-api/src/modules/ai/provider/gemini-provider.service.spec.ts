@@ -213,19 +213,33 @@ describe('GeminiProvider', () => {
     ]);
   });
 
-  it('reports finishReason tool_calls and parses functionCalls into AiToolCall[]', async () => {
+  it('reports finishReason tool_calls and parses a functionCall part into AiToolCall[], capturing its thoughtSignature', async () => {
+    // Regression: response.functionCalls (the SDK's convenience getter) only
+    // returns {id, name, args} — reading it instead of parts would silently
+    // drop thoughtSignature and break the round-trip (see toGeminiContent's
+    // 'assistant' case), which is exactly what happened live against the
+    // real API before this was fixed.
     const generateContent = jest
       .fn<Promise<unknown>, [GenerateContentCallArgs]>()
       .mockResolvedValue({
         text: null,
-        functionCalls: [
+        candidates: [
           {
-            id: 'call_1',
-            name: 'search_products',
-            args: { query: 'tornillo' },
+            finishReason: 'STOP',
+            content: {
+              parts: [
+                {
+                  functionCall: {
+                    id: 'call_1',
+                    name: 'search_products',
+                    args: { query: 'tornillo' },
+                  },
+                  thoughtSignature: 'opaque-signature-abc',
+                },
+              ],
+            },
           },
         ],
-        candidates: [{ finishReason: 'STOP' }],
         usageMetadata: {},
       });
     const provider = providerWithClient(generateContent);
@@ -243,8 +257,60 @@ describe('GeminiProvider', () => {
         id: 'call_1',
         name: 'search_products',
         arguments: { query: 'tornillo' },
+        providerMetadata: { thoughtSignature: 'opaque-signature-abc' },
       },
     ]);
+  });
+
+  it("echoes a tool call's thoughtSignature back on the functionCall part when replaying it on a later turn", async () => {
+    const generateContent = jest
+      .fn<Promise<unknown>, [GenerateContentCallArgs]>()
+      .mockResolvedValue({
+        text: 'listo',
+        candidates: [{ finishReason: 'STOP' }],
+        usageMetadata: {},
+      });
+    const provider = providerWithClient(generateContent);
+
+    await provider.complete({
+      messages: [
+        { role: 'user', content: 'buscá tornillo' },
+        {
+          role: 'assistant',
+          content: null,
+          toolCalls: [
+            {
+              id: 'call_1',
+              name: 'search_products',
+              arguments: { query: 'tornillo' },
+              providerMetadata: { thoughtSignature: 'opaque-signature-abc' },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          toolCallId: 'call_1',
+          name: 'search_products',
+          content: { products: [] },
+        },
+      ],
+      maxOutputTokens: 100,
+    });
+
+    const call = generateContent.mock.calls[0][0];
+    expect(call.contents[1]).toEqual({
+      role: 'model',
+      parts: [
+        {
+          functionCall: {
+            id: 'call_1',
+            name: 'search_products',
+            args: { query: 'tornillo' },
+          },
+          thoughtSignature: 'opaque-signature-abc',
+        },
+      ],
+    });
   });
 
   it('wraps a transport/API failure as AI_PROVIDER_ERROR without leaking the underlying error message', async () => {

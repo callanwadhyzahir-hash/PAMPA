@@ -24,10 +24,9 @@ import type {
 /**
  * The only class in PAMPA that imports the `@google/genai` SDK. Mirrors
  * OpenAiProvider's shape exactly (lazy client, same error-swallowing rules)
- * so AiGatewayService can call either provider interchangeably. Currently
- * only used for structured extraction (Carga inteligente de stock) — the
- * general chat() tool-calling loop stays on OpenAiProvider (AI_PROVIDER
- * token, unchanged).
+ * so AiGatewayService can call either provider interchangeably — it picks
+ * this one for AI_FREE companies, both for chat() and extraction, see
+ * AiGatewayService.selectProviderForPlan().
  */
 @Injectable()
 export class GeminiProvider implements AiProvider {

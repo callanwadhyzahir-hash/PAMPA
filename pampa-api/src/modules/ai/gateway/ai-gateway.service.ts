@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { RateLimitService } from '../../auth/rate-limit/rate-limit.service';
@@ -8,7 +8,6 @@ import { AiConfigService } from '../ai.config';
 import {
   AiCostLimitExceededError,
   AiDomainError,
-  AiInvalidResponseError,
   AiProviderError,
   AiProviderNotConfiguredError,
   AiRateLimitedError,
@@ -18,7 +17,6 @@ import { AiPricingService } from '../pricing/ai-pricing.service';
 import { GeminiProvider } from '../provider/gemini-provider.service';
 import { OpenAiProvider } from '../provider/openai-provider.service';
 import type { AiToolCall } from '../provider/ai-tool.interface';
-import { AI_PROVIDER } from '../provider/ai-provider.token';
 import type {
   AiMessage,
   AiProvider,
@@ -110,24 +108,52 @@ export class AiGatewayService {
     private readonly rateLimit: RateLimitService,
     private readonly audit: SecurityAuditService,
     private readonly tools: AiToolRegistry,
-    @Inject(AI_PROVIDER) private readonly provider: AiProvider,
     /**
-     * Extraction (extractProducts) picks between these two directly instead
-     * of going through AI_PROVIDER, since it needs Gemini-first-with-
-     * OpenAI-fallback regardless of which provider chat() is bound to.
+     * Every call picks between these two itself, per the company's plan —
+     * see selectProviderForPlan(). Neither is a fixed "default"; nothing
+     * else in this class holds a single ambient AiProvider.
      */
     private readonly openAiProvider: OpenAiProvider,
     private readonly geminiProvider: GeminiProvider,
   ) {}
+
+  /**
+   * Commercial routing, not resilience: AI_FREE companies run on Gemini
+   * (free tier), every paying plan runs on OpenAI. Deliberately no
+   * cross-plan fallback on failure — a Free company's request never
+   * silently spends real OpenAI money, and a Pro company's request never
+   * silently downgrades to the free provider. A provider outage fails the
+   * request (AiProviderError, "try again shortly"), it does not switch
+   * plans.
+   */
+  private selectProviderForPlan(
+    planCode: string | null | undefined,
+  ): AiProvider {
+    return planCode === 'AI_FREE' ? this.geminiProvider : this.openAiProvider;
+  }
+
+  private isProviderConfigured(provider: AiProvider): boolean {
+    return provider === this.geminiProvider
+      ? this.config.geminiConfigured
+      : this.config.configured;
+  }
+
+  private modelFor(provider: AiProvider): string {
+    return provider === this.geminiProvider
+      ? this.config.geminiModel
+      : this.config.generalModel;
+  }
 
   async chat(
     context: SecurityContext,
     message: string,
     conversationContext: AiConversationTurn[] = [],
   ): Promise<AiChatResult> {
-    await this.subscriptions.requireEnabled(context.companyId);
-
-    if (!this.config.configured) {
+    const subscription = await this.subscriptions.requireEnabled(
+      context.companyId,
+    );
+    const provider = this.selectProviderForPlan(subscription.plan_code);
+    if (!this.isProviderConfigured(provider)) {
       throw new AiProviderNotConfiguredError();
     }
 
@@ -136,7 +162,11 @@ export class AiGatewayService {
     const truncatedContext = conversationContext.slice(
       -this.config.maxConversationContextMessages,
     );
-    const estimate = this.estimateWorstCase(message, truncatedContext);
+    const estimate = this.estimateWorstCase(
+      provider,
+      message,
+      truncatedContext,
+    );
     await this.reserveQuota(context, estimate);
 
     const messages: AiMessage[] = [
@@ -157,7 +187,7 @@ export class AiGatewayService {
 
     try {
       for (let round = 1; round <= this.config.maxToolRounds; round++) {
-        const result = await this.provider.complete({
+        const result = await provider.complete({
           messages,
           tools: toolDefinitions,
           maxOutputTokens: this.config.chatMaxOutputTokens,
@@ -165,7 +195,7 @@ export class AiGatewayService {
 
         this.addUsage(accumulatedUsage, result.usage);
         const roundCost = this.pricing.calculate({
-          provider: this.provider.name,
+          provider: provider.name,
           model: result.model,
           inputTokens: result.usage.inputTokens,
           cachedInputTokens: result.usage.cachedInputTokens,
@@ -221,8 +251,8 @@ export class AiGatewayService {
       await this.usage.record({
         companyId: context.companyId,
         userId: context.userId,
-        provider: this.provider.name,
-        model: this.config.generalModel,
+        provider: provider.name,
+        model: this.modelFor(provider),
         operation: 'chat',
         inputTokens: accumulatedUsage.inputTokens,
         cachedInputTokens: accumulatedUsage.cachedInputTokens,
@@ -267,8 +297,8 @@ export class AiGatewayService {
       await this.usage.record({
         companyId: context.companyId,
         userId: context.userId,
-        provider: this.provider.name,
-        model: this.config.generalModel,
+        provider: provider.name,
+        model: this.modelFor(provider),
         operation: 'chat',
         inputTokens: accumulatedUsage.inputTokens,
         cachedInputTokens: accumulatedUsage.cachedInputTokens,
@@ -295,55 +325,27 @@ export class AiGatewayService {
 
   /**
    * Carga inteligente de stock: single-shot structured extraction (no tool
-   * loop, no conversation history) with Gemini as primary provider and a
-   * single OpenAI fallback — only on a provider-side failure (network,
-   * timeout, malformed output), never on the user's own text/image being
-   * ambiguous (see docs/pampa-ai-architecture.md §Contexto and the
-   * feature's cost-minimization requirement: a bad photo doesn't deserve a
-   * second billed call). Quota is checked and reserved before EVERY
-   * provider call this makes, including the fallback one.
+   * loop, no conversation history). Same plan-based routing as chat() —
+   * see selectProviderForPlan() — and the same reasoning applies to why
+   * there's no cross-plan fallback: a Free company's extraction never
+   * silently spends real OpenAI money just because Gemini had a bad
+   * moment. Quota is checked and reserved before the provider call.
    */
   async extractProducts(
     context: SecurityContext,
     input: AiExtractionInput,
   ): Promise<AiExtractionResult> {
-    await this.subscriptions.requireEnabled(context.companyId);
-    if (!this.config.configured && !this.config.geminiConfigured) {
+    const subscription = await this.subscriptions.requireEnabled(
+      context.companyId,
+    );
+    const provider = this.selectProviderForPlan(subscription.plan_code);
+    if (!this.isProviderConfigured(provider)) {
       throw new AiProviderNotConfiguredError();
     }
     await this.enforceExtractionRateLimit(context);
 
     const messages = this.buildExtractionMessages(input);
-    const primary = this.config.geminiConfigured
-      ? this.geminiProvider
-      : this.openAiProvider;
-    const secondary =
-      primary === this.geminiProvider && this.config.configured
-        ? this.openAiProvider
-        : primary === this.openAiProvider && this.config.geminiConfigured
-          ? this.geminiProvider
-          : null;
-
-    try {
-      return await this.callExtractionProvider(
-        context,
-        primary,
-        messages,
-        input,
-      );
-    } catch (error) {
-      const canFallback =
-        secondary !== null &&
-        (error instanceof AiProviderError ||
-          error instanceof AiInvalidResponseError);
-      if (!canFallback) throw error;
-      return await this.callExtractionProvider(
-        context,
-        secondary,
-        messages,
-        input,
-      );
-    }
+    return this.callExtractionProvider(context, provider, messages, input);
   }
 
   private buildExtractionMessages(input: AiExtractionInput): AiMessage[] {
@@ -381,7 +383,7 @@ export class AiGatewayService {
     let usage = zeroUsage();
     let costUsd = new Prisma.Decimal(0);
     let credits = new Prisma.Decimal(0);
-    let resultModel = this.config.generalModel;
+    let resultModel = this.modelFor(provider);
 
     try {
       const result = await provider.complete({
@@ -477,13 +479,9 @@ export class AiGatewayService {
     const estimatedInputTokens =
       Math.ceil(textChars / CHARS_PER_TOKEN_ESTIMATE) +
       (input.image ? EXTRACTION_IMAGE_TOKEN_ESTIMATE : 0);
-    const model =
-      provider === this.geminiProvider
-        ? this.config.geminiModel
-        : this.config.generalModel;
     const costUsd = this.pricing.estimateMax({
       provider: provider.name,
-      model,
+      model: this.modelFor(provider),
       estimatedInputTokens,
       maxOutputTokens: this.config.extractionMaxOutputTokens,
     });
@@ -655,6 +653,7 @@ export class AiGatewayService {
   }
 
   private estimateWorstCase(
+    provider: AiProvider,
     message: string,
     context: AiConversationTurn[],
   ): AiQuotaEstimate {
@@ -672,8 +671,8 @@ export class AiGatewayService {
       this.config.chatMaxOutputTokens * this.config.maxToolRounds;
 
     const costUsd = this.pricing.estimateMax({
-      provider: this.provider.name,
-      model: this.config.generalModel,
+      provider: provider.name,
+      model: this.modelFor(provider),
       estimatedInputTokens,
       maxOutputTokens,
     });

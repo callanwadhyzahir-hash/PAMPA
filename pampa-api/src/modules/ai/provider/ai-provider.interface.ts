@@ -53,10 +53,10 @@ export interface AiCompleteResult {
  * import a provider SDK or call complete() directly (see
  * docs/pampa-ai-architecture.md).
  *
- * Adding a second provider (Gemini, a self-hosted model, ...) means writing
- * a new class implementing this interface and pointing the AI_PROVIDER
- * token at it in ai.module.ts — AiGatewayService, AiToolRegistry and every
- * ERP module stay untouched.
+ * Adding a provider means writing a new class implementing this interface
+ * and registering it in ai.module.ts — AiGatewayService picks between
+ * registered providers itself (see selectProviderForPlan()), so
+ * AiToolRegistry and every ERP module stay untouched.
  */
 export interface AiProvider {
   readonly name: string;

@@ -113,7 +113,10 @@ function makeDeps(tools: AiTool[] = []) {
   };
 
   const subscriptions = {
-    requireEnabled: jest.fn().mockResolvedValue({}),
+    // AI_PRO by default so every pre-existing test (written when there was
+    // a single ambient provider) keeps exercising deps.provider/openai —
+    // tests that care about routing set plan_code explicitly.
+    requireEnabled: jest.fn().mockResolvedValue({ plan_code: 'AI_PRO' }),
     getUsageStatus: jest.fn().mockResolvedValue({
       enabled: true,
       plan: 'AI_FREE',
@@ -214,7 +217,6 @@ function makeGateway(deps: ReturnType<typeof makeDeps>) {
     deps.rateLimit as unknown as RateLimitService,
     deps.audit as unknown as SecurityAuditService,
     deps.registry as unknown as AiToolRegistry,
-    deps.provider,
     deps.provider as unknown as OpenAiProvider,
     deps.geminiProvider as unknown as GeminiProvider,
   );
@@ -349,6 +351,57 @@ describe('AiGatewayService.chat — basic flow', () => {
 
     expect(JSON.stringify(result)).not.toContain('internal_cost_limit_usd');
     expect(JSON.stringify(result)).not.toContain('costUsd');
+  });
+
+  it('routes an AI_FREE company to Gemini and never touches OpenAI, even though OpenAI is configured', async () => {
+    const deps = makeDeps();
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_FREE',
+    });
+    deps.geminiProvider.complete.mockResolvedValue(
+      stopResult({ model: 'gemini-3.6-flash', content: 'hola desde gemini' }),
+    );
+    const gateway = makeGateway(deps);
+
+    const result = await gateway.chat(context, 'hola');
+
+    expect(deps.geminiProvider.complete).toHaveBeenCalledTimes(1);
+    expect(deps.provider.complete).not.toHaveBeenCalled();
+    expect(result.reply).toBe('hola desde gemini');
+    expect(deps.usage.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'gemini',
+        model: 'gemini-3.6-flash',
+      }),
+    );
+  });
+
+  it("does not fall back to Gemini when the paying-plan company's OpenAI call fails — this is what broke before the fix (every chat used to hard-fail while OPENAI_API_KEY had no funded credit)", async () => {
+    const deps = makeDeps();
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_PRO',
+    });
+    deps.provider.complete.mockRejectedValue(new AiProviderError());
+    const gateway = makeGateway(deps);
+
+    await expect(gateway.chat(context, 'hola')).rejects.toBeInstanceOf(
+      AiProviderError,
+    );
+    expect(deps.geminiProvider.complete).not.toHaveBeenCalled();
+  });
+
+  it('throws AI_PROVIDER_NOT_CONFIGURED for an AI_FREE company when GEMINI_API_KEY is missing, even though OpenAI is configured', async () => {
+    const deps = makeDeps();
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_FREE',
+    });
+    deps.config.geminiConfigured = false;
+    const gateway = makeGateway(deps);
+
+    await expect(gateway.chat(context, 'hola')).rejects.toBeInstanceOf(
+      AiProviderNotConfiguredError,
+    );
+    expect(deps.provider.complete).not.toHaveBeenCalled();
   });
 });
 
@@ -545,8 +598,11 @@ describe('AiGatewayService.extractProducts — Carga inteligente de stock', () =
     return stopResult({ model, content: json });
   }
 
-  it('checks the subscription and quota before ever calling a provider, and settles on success', async () => {
+  it('routes an AI_FREE company to Gemini, checks quota first, and settles on success', async () => {
     const deps = makeDeps();
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_FREE',
+    });
     deps.geminiProvider.complete.mockResolvedValue(
       extractionResult('{"products":[{"name":"Remera Nike"}]}'),
     );
@@ -559,7 +615,7 @@ describe('AiGatewayService.extractProducts — Carga inteligente de stock', () =
     expect(deps.subscriptions.requireEnabled).toHaveBeenCalledWith('company-1');
     expect(deps.quota.reserve).toHaveBeenCalledTimes(1);
     expect(deps.geminiProvider.complete).toHaveBeenCalledTimes(1);
-    expect(deps.provider.complete).not.toHaveBeenCalled(); // OpenAI never touched — Gemini succeeded
+    expect(deps.provider.complete).not.toHaveBeenCalled(); // OpenAI never touched — free plan never sees it
     expect(deps.quota.settle).toHaveBeenCalledTimes(1);
     expect(result.products).toEqual([
       expect.objectContaining({ name: 'Remera Nike' }),
@@ -574,22 +630,11 @@ describe('AiGatewayService.extractProducts — Carga inteligente de stock', () =
     );
   });
 
-  it('prefers Gemini as the primary provider when both are configured', async () => {
+  it('routes a paying-plan company to OpenAI and never touches Gemini', async () => {
     const deps = makeDeps();
-    deps.geminiProvider.complete.mockResolvedValue(
-      extractionResult('{"products":[]}'),
-    );
-    const gateway = makeGateway(deps);
-
-    await gateway.extractProducts(context, { text: 'algo' });
-
-    expect(deps.geminiProvider.complete).toHaveBeenCalledTimes(1);
-    expect(deps.provider.complete).not.toHaveBeenCalled();
-  });
-
-  it('falls back to OpenAI, with its own quota reservation, when Gemini fails at the provider level', async () => {
-    const deps = makeDeps();
-    deps.geminiProvider.complete.mockRejectedValue(new AiProviderError());
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_PRO',
+    });
     deps.provider.complete.mockResolvedValue(
       extractionResult('{"products":[{"name":"Pantalón"}]}', 'gpt-5-mini'),
     );
@@ -597,58 +642,50 @@ describe('AiGatewayService.extractProducts — Carga inteligente de stock', () =
 
     const result = await gateway.extractProducts(context, { text: 'algo' });
 
-    expect(deps.geminiProvider.complete).toHaveBeenCalledTimes(1);
     expect(deps.provider.complete).toHaveBeenCalledTimes(1);
-    expect(deps.quota.reserve).toHaveBeenCalledTimes(2); // one hold per provider call
-    expect(deps.quota.release).toHaveBeenCalledTimes(1); // Gemini's failed reservation
-    expect(deps.quota.settle).toHaveBeenCalledTimes(1); // OpenAI's successful one
+    expect(deps.geminiProvider.complete).not.toHaveBeenCalled();
     expect(result.provider).toBe('openai');
   });
 
-  it("falls back to OpenAI when Gemini returns unparseable JSON, and settles (not releases) Gemini's reservation since it was actually billed", async () => {
+  it("never falls back to the other plan's provider on failure — an AI_FREE company just gets the error back", async () => {
     const deps = makeDeps();
-    deps.geminiProvider.complete.mockResolvedValue(
-      extractionResult('not json'),
-    );
-    deps.provider.complete.mockResolvedValue(
-      extractionResult('{"products":[]}', 'gpt-5-mini'),
-    );
-    const gateway = makeGateway(deps);
-
-    await gateway.extractProducts(context, { text: 'algo' });
-
-    expect(deps.quota.settle).toHaveBeenCalledTimes(2); // Gemini's billed-but-invalid call, then OpenAI's
-    expect(deps.quota.release).not.toHaveBeenCalled();
-  });
-
-  it('does not fall back a second time — a failing secondary propagates its own error', async () => {
-    const deps = makeDeps();
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_FREE',
+    });
     deps.geminiProvider.complete.mockRejectedValue(new AiProviderError());
-    deps.provider.complete.mockRejectedValue(new AiProviderError());
     const gateway = makeGateway(deps);
 
     await expect(
       gateway.extractProducts(context, { text: 'algo' }),
     ).rejects.toBeInstanceOf(AiProviderError);
     expect(deps.geminiProvider.complete).toHaveBeenCalledTimes(1);
-    expect(deps.provider.complete).toHaveBeenCalledTimes(1);
+    expect(deps.provider.complete).not.toHaveBeenCalled(); // no cross-plan fallback
+    expect(deps.quota.release).toHaveBeenCalledTimes(1);
+    expect(deps.quota.settle).not.toHaveBeenCalled();
   });
 
-  it('never falls back when only one provider is configured — the failure propagates directly', async () => {
+  it('settles (not releases) when the response was malformed — the call was real and billed even though it was unusable', async () => {
     const deps = makeDeps();
-    deps.config.configured = false; // only Gemini configured
-    deps.geminiProvider.complete.mockRejectedValue(new AiProviderError());
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_FREE',
+    });
+    deps.geminiProvider.complete.mockResolvedValue(
+      extractionResult('not json'),
+    );
     const gateway = makeGateway(deps);
 
     await expect(
       gateway.extractProducts(context, { text: 'algo' }),
-    ).rejects.toBeInstanceOf(AiProviderError);
-    expect(deps.provider.complete).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(AiInvalidResponseError);
+    expect(deps.quota.settle).toHaveBeenCalledTimes(1);
+    expect(deps.quota.release).not.toHaveBeenCalled();
   });
 
-  it('throws AI_PROVIDER_NOT_CONFIGURED when neither provider has an API key, without touching quota', async () => {
+  it("throws AI_PROVIDER_NOT_CONFIGURED when the plan's assigned provider has no API key, without touching quota", async () => {
     const deps = makeDeps();
-    deps.config.configured = false;
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_FREE',
+    });
     deps.config.geminiConfigured = false;
     const gateway = makeGateway(deps);
 
@@ -656,6 +693,7 @@ describe('AiGatewayService.extractProducts — Carga inteligente de stock', () =
       gateway.extractProducts(context, { text: 'algo' }),
     ).rejects.toBeInstanceOf(AiProviderNotConfiguredError);
     expect(deps.quota.reserve).not.toHaveBeenCalled();
+    expect(deps.geminiProvider.complete).not.toHaveBeenCalled();
   });
 
   it('throws AI_DISABLED and never calls a provider when the company has no AI subscription', async () => {
@@ -672,6 +710,9 @@ describe('AiGatewayService.extractProducts — Carga inteligente de stock', () =
 
   it('reserves a larger estimate for an image than for text-only input', async () => {
     const deps = makeDeps();
+    deps.subscriptions.requireEnabled.mockResolvedValue({
+      plan_code: 'AI_FREE',
+    });
     deps.geminiProvider.complete.mockResolvedValue(
       extractionResult('{"products":[]}'),
     );
@@ -691,18 +732,5 @@ describe('AiGatewayService.extractProducts — Carga inteligente de stock', () =
       deps.pricing.estimateMax.mock.calls[0];
 
     expect(withImage).toBeGreaterThan(textOnly);
-  });
-
-  it('rejects a malformed extraction response as AI_INVALID_RESPONSE when there is no provider left to fall back to', async () => {
-    const deps = makeDeps();
-    deps.config.configured = false; // only Gemini configured, no fallback available
-    deps.geminiProvider.complete.mockResolvedValue(
-      extractionResult('not json'),
-    );
-    const gateway = makeGateway(deps);
-
-    await expect(
-      gateway.extractProducts(context, { text: 'algo' }),
-    ).rejects.toBeInstanceOf(AiInvalidResponseError);
   });
 });

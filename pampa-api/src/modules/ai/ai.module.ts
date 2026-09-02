@@ -9,12 +9,10 @@ import { StockModule } from '../inventory/stock/stock.module';
 import { AiAdminController } from './admin/ai-admin.controller';
 import { AiAdminService } from './admin/ai-admin.service';
 import { AiConfigService } from './ai.config';
-import type { AiProvider } from './provider/ai-provider.interface';
 import { AiController } from './ai.controller';
 import { AiCreditsService } from './credits/ai-credits.service';
 import { AiGatewayService } from './gateway/ai-gateway.service';
 import { AiPricingService } from './pricing/ai-pricing.service';
-import { AI_PROVIDER } from './provider/ai-provider.token';
 import { GeminiProvider } from './provider/gemini-provider.service';
 import { OpenAiProvider } from './provider/openai-provider.service';
 import { AiQuotaService } from './quota/ai-quota.service';
@@ -56,25 +54,6 @@ import { AiUsageRepository } from './usage/ai-usage.repository';
     RateLimitService,
     OpenAiProvider,
     GeminiProvider,
-    /**
-     * Prefer Gemini when it's configured — same "which provider is actually
-     * usable right now" logic as AiGatewayService.extractProducts()'s own
-     * fallback, just decided once at boot instead of per-call, since chat()
-     * only ever talks to one provider (no mid-conversation fallback: a tool
-     * call already went out under one provider's function-calling format,
-     * switching mid-loop would desync the transcript). Falls back to
-     * OpenAiProvider when GEMINI_API_KEY isn't set, so a Gemini-only outage
-     * doesn't remove the assistant for an install that never configured it.
-     */
-    {
-      provide: AI_PROVIDER,
-      useFactory: (
-        config: AiConfigService,
-        openai: OpenAiProvider,
-        gemini: GeminiProvider,
-      ): AiProvider => (config.geminiConfigured ? gemini : openai),
-      inject: [AiConfigService, OpenAiProvider, GeminiProvider],
-    },
     AiToolRegistry,
     AiToolsRepository,
     AiToolsRegistrar,
